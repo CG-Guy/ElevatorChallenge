@@ -12,11 +12,11 @@ namespace ElevatorChallenge
         static void Main(string[] args)
         {
             // Create a list of elevators for the elevator service
-            var elevators = new List<Elevator>
+            var elevators = new List<GlassElevator>
             {
-                new Elevator(0, 5, 5, 1), // Elevator ID 0, MaxFloor 5, Capacity 5, CurrentFloor 1
-                new Elevator(1, 5, 5, 3), // Elevator ID 1, MaxFloor 5, Capacity 5, CurrentFloor 3
-                new Elevator(2, 5, 5, 2)  // Elevator ID 2, MaxFloor 5, Capacity 5, CurrentFloor 2
+                new GlassElevator(0, 1, 5), // Elevator ID 0, CurrentFloor 1, MaxPassengerCapacity 5
+                new GlassElevator(1, 3, 5), // Elevator ID 1, CurrentFloor 3, MaxPassengerCapacity 5
+                new GlassElevator(2, 2, 5)  // Elevator ID 2, CurrentFloor 2, MaxPassengerCapacity 5
             };
 
             // Create instances of ElevatorService and ElevatorController

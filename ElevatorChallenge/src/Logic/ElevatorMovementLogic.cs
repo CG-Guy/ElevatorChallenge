@@ -12,31 +12,31 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Logic
                 return; // Invalid target floor; do not change the current floor, just return
             }
 
+            // No need to move if already on the target floor
             if (targetFloor == elevator.CurrentFloor)
             {
-                return; // No need to move if already on the target floor
+                return; // No need to move
             }
 
             // Set the direction based on the target floor
             string direction = targetFloor > elevator.CurrentFloor ? "Up" : "Down";
-            elevator.SetDirection(direction);
+            elevator.IsMoving = true; // Set IsMoving to true
 
-            // Set IsMoving to true
-            elevator.SetMovingStatus(true);
+            // Use the method to set the direction
+            elevator.SetDirection(direction); // Call the method to set direction
 
             // Simulate movement to the target floor
             await Task.Delay((int)CalculateMovementTime(elevator.CurrentFloor, targetFloor, elevator.TimePerFloor));
 
             // Update the current floor after movement
-            elevator.SetCurrentFloor(targetFloor);
-            elevator.SetMovingStatus(false);
-            elevator.SetDirection("Stationary");
+            elevator.CurrentFloor = targetFloor; // Move to target floor
+            elevator.IsMoving = false; // Set IsMoving to false
+            elevator.SetDirection("Stationary"); // Reset direction to stationary
         }
 
-        private int CalculateMovementTime(int currentFloor, int targetFloor, int timePerFloor)
+        private double CalculateMovementTime(int currentFloor, int targetFloor, int timePerFloor)
         {
-            int numberOfFloorsToMove = Math.Abs(targetFloor - currentFloor);
-            return numberOfFloorsToMove * timePerFloor; // Total time = floors to move * time per floor
+            return Math.Abs(targetFloor - currentFloor) * timePerFloor; // Calculate movement time based on floors
         }
     }
 }

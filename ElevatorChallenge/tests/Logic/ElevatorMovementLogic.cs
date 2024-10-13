@@ -9,23 +9,24 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Logic
         [Fact]
         public async Task MoveElevatorToFloor_Should_Update_CurrentFloor()
         {
-            var elevator = new Elevator(1, 5, 5, 1); // ID 1, Max floor 5, Capacity 5, Current floor 1
+            // Use PassengerElevator instead of Elevator
+            var elevator = new PassengerElevator(1, 1, 5); // ID 1, Current floor 1, Max capacity 5
             var movementLogic = new ElevatorMovementLogic();
 
-            await movementLogic.MoveElevatorToFloor(elevator, 3); // Await the call
+            await movementLogic.MoveElevatorToFloor(elevator, 3); // Move to floor 3 asynchronously
 
-            Assert.Equal(3, elevator.CurrentFloor);
+            Assert.Equal(3, elevator.CurrentFloor); // Assert that the current floor is now 3
         }
 
         [Fact]
         public async Task MoveElevatorToFloor_Should_Not_Move_Above_Max_Floor()
         {
             // Arrange: Create an elevator at current floor 4 with a maximum floor of 5
-            var elevator = new Elevator(1, 5, 5, 4); // Correctly initializes with current floor 4
+            var elevator = new PassengerElevator(1, 4, 5); // Initializes with current floor 4
             var movementLogic = new ElevatorMovementLogic();
 
             // Act: Attempt to move the elevator to an invalid floor (6)
-            await movementLogic.MoveElevatorToFloor(elevator, 6); // Await the call
+            await movementLogic.MoveElevatorToFloor(elevator, 6); // Await the asynchronous call
 
             // Assert: Verify that the elevator remains on the current floor (4)
             Assert.Equal(4, elevator.CurrentFloor); // Should remain on the current floor
@@ -33,11 +34,10 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Logic
             Assert.Equal("Stationary", elevator.Direction); // Should be stationary
         }
 
-
         [Fact]
         public async Task MoveElevatorToFloor_Should_Not_Move_Below_Min_Floor()
         {
-            var elevator = new Elevator(1, 5, 5, 1); // ID 1, Max floor 5, Capacity 5, Current floor 1
+            var elevator = new PassengerElevator(1, 1, 5); // ID 1, Max floor 5, Capacity 5, Current floor 1
             var movementLogic = new ElevatorMovementLogic();
 
             await movementLogic.MoveElevatorToFloor(elevator, 0); // Await the call
@@ -49,22 +49,21 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Logic
         [Fact]
         public void Elevator_Initialization_Should_Set_Default_Values()
         {
-            // Arrange: Create a new elevator with max floor 10, current floor 1, max capacity 5, and no passengers initially.
-            var elevator = new Elevator(1, 10, 5); // Correctly set the initial current floor to 1
+            // Arrange: Create a new passenger elevator with max floor 10, current floor 1, max capacity 5, and no passengers initially.
+            var elevator = new PassengerElevator(1, 1, 5); // This initializes the elevator
 
             // Act & Assert: Check that MaxFloor, CurrentFloor, and MaxPassengerCapacity are set correctly.
-            Assert.Equal(10, elevator.MaxFloor);
+            Assert.Equal(10, elevator.MaxFloor); // Expecting max floor to be set to 10
             Assert.Equal(1, elevator.CurrentFloor); // Expecting current floor to be set to 1
-            Assert.Equal(5, elevator.MaxPassengerCapacity);
+            Assert.Equal(5, elevator.MaxPassengerCapacity); // Expecting max capacity to be set to 5
             Assert.Equal(0, elevator.PassengerCount); // PassengerCount should be 0 by default
         }
 
-        
         // Test to ensure IsMoving is true while elevator is in motion
         [Fact]
         public async Task MoveElevatorToFloor_Should_Set_IsMoving_To_True_While_Moving()
         {
-            var elevator = new Elevator(1, 5, 5, 1); // ID 1, Max floor 5, Capacity 5, Current floor 1
+            var elevator = new PassengerElevator(1, 1, 5); // ID 1, Max floor 5, Capacity 5, Current floor 1
             var movementLogic = new ElevatorMovementLogic();
 
             // Start moving the elevator
@@ -79,7 +78,7 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Logic
         [Fact]
         public async Task MoveElevatorToFloor_Should_Set_IsMoving_To_False_After_Moving()
         {
-            var elevator = new Elevator(1, 5, 5, 1); // ID 1, Max floor 5, Capacity 5, Current floor 1
+            var elevator = new PassengerElevator(1, 1, 5); // ID 1, Max floor 5, Capacity 5, Current floor 1
             var movementLogic = new ElevatorMovementLogic();
 
             await movementLogic.MoveElevatorToFloor(elevator, 3); // Await the call
@@ -91,7 +90,7 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Logic
         [Fact]
         public async Task MoveElevatorToFloor_Should_Not_Move_When_Current_Floor_Equals_Target_Floor()
         {
-            var elevator = new Elevator(1, 5, 5, 3); // Current floor is 3
+            var elevator = new PassengerElevator(1, 1, 5); // Current floor is 3
             var movementLogic = new ElevatorMovementLogic();
 
             await movementLogic.MoveElevatorToFloor(elevator, 3); // Await the call

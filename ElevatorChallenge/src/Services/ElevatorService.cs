@@ -12,6 +12,14 @@ namespace ElevatorChallenge.Services
         private readonly ElevatorLogic _elevatorLogic;
         private readonly ElevatorMovementLogic _elevatorMovementLogic;
 
+        private List<Elevator> elevators;
+
+        // Accept IEnumerable instead of List
+        public ElevatorService(IEnumerable<Elevator> elevators)
+        {
+            this.elevators = elevators.ToList(); // Convert to List if needed
+        }
+
         public ElevatorService(List<Elevator> elevators)
         {
             _elevators = elevators ?? throw new ArgumentNullException(nameof(elevators));

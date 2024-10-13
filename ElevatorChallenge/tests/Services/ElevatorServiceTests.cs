@@ -15,8 +15,8 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Services
             // Arrange: Create elevators with max floor, max capacity, and current floor settings
             var elevators = new List<Elevator>
             {
-                new Elevator(1, 5, 5, 1), // Elevator with ID 1, Max floor 5, Capacity 5, on floor 1
-                new Elevator(2, 5, 5, 5)  // Elevator with ID 2, Max floor 5, Capacity 5, on floor 5
+                new PassengerElevator (1, 1, 5), // Elevator with ID 1, Max floor 5, Capacity 5, on floor 1
+                new PassengerElevator (2, 2, 5)  // Elevator with ID 2, Max floor 5, Capacity 5, on floor 5
             };
 
             var elevatorService = new ElevatorService(elevators);
@@ -35,8 +35,8 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Services
             // Arrange: Create elevators with different states
             var elevators = new List<Elevator>
             {
-                new Elevator(1, 5, 5, 1), // Elevator with ID 1, Max floor 5, Capacity 5, on floor 1
-                new Elevator(2, 5, 5, 5)  // Elevator with ID 2, Max floor 5, Capacity 5, on floor 5
+                new PassengerElevator (1, 1, 5), // Elevator with ID 1, Max floor 5, Capacity 5, on floor 1
+                new PassengerElevator (2, 2, 5)  // Elevator with ID 2, Max floor 5, Capacity 5, on floor 5
             };
             elevators[0].AddPassengers(3); // Elevator 1 with 3 passengers
             elevators[1].AddPassengers(1); // Elevator 2 with 1 passenger
@@ -62,8 +62,8 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Services
             // Arrange: Create a list of elevators
             var elevators = new List<Elevator>
             {
-                new Elevator(1, 5, 5, 1), // Elevator with ID 1, Max floor 5, Capacity 5, on floor 1
-                new Elevator(2, 5, 5, 5)  // Elevator with ID 2, Max floor 5, Capacity 5, on floor 5
+                new PassengerElevator (1, 1, 5), // Elevator with ID 1, Max floor 5, Capacity 5, on floor 1
+                new PassengerElevator (2, 2, 5)  // Elevator with ID 2, Max floor 5, Capacity 5, on floor 5
             };
             elevators[0].AddPassengers(0); // No passengers in elevator 1
             elevators[1].AddPassengers(2); // 2 passengers in elevator 2
