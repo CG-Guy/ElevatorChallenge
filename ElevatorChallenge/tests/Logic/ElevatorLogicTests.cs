@@ -21,7 +21,7 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Logic
 
             Assert.NotNull(nearestElevator);
             Assert.Equal(1, nearestElevator.CurrentFloor); // Expected: the nearest elevator is at floor 1
-        } 
+        }
 
         [Fact]
         public void CanTakePassengers_Should_Return_True_When_Elevator_Has_Space()
