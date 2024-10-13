@@ -62,3 +62,6 @@ For any inquiries or feedback, please contact:
 Hein Pienaar
 Email: hein _pienaar@hotmail.com
 
+.NET Version:
+.NET SDK requirement to specify .NET 8.
+
