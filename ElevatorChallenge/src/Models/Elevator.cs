@@ -3,16 +3,28 @@
 namespace ElevatorChallenge.ElevatorChallenge.src.Models
 {
     // Represents an Elevator object focusing only on its state.
-    public class Elevator
+    public abstract class Elevator
     {
-        public int Id { get; }
-        public int CurrentFloor { get; private set; }
+        public int Id { get; set; }
+        public int CurrentFloor { get; set; }
         public int PassengerCount { get; private set; }
-        public int MaxPassengerCapacity { get; }
-        public bool IsMoving { get; private set; }
-        public string Direction { get; private set; } = "Stationary"; // Keeps track of direction
-        public int MaxFloor { get; }
+        public int MaxPassengerCapacity { get; set; }
+        public bool IsMoving { get; set; }
+        public int MaxFloor { get; private set; }
         public int TimePerFloor { get; private set; } = 1; // Default time per floor (in seconds)
+
+        // Mark the Stop method as virtual to allow overriding
+        public virtual void Stop()
+        {
+            IsMoving = false; // Logic to stop the elevator
+            Console.WriteLine($"Elevator {Id} has stopped.");
+        }
+
+        // Add the TargetFloor property
+        public int TargetFloor { get; set; } // New property to track the target floor
+
+        // Mark the Direction property as virtual to allow overriding
+        public virtual string Direction => IsMoving ? (CurrentFloor < TargetFloor ? "Up" : "Down") : "Stationary";
 
         // Constructor to initialize the elevator with an ID, maximum floor, and initial passengers
         public Elevator(int id, int maxFloor, int maxPassengerCapacity, int currentFloor = 1, int currentPassengers = 0)
@@ -25,13 +37,18 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Models
             IsMoving = false;
         }
 
+        // Abstract method for moving the elevator
+        public abstract void Move(int targetFloor);
+
+        private string _direction; // Private backing field for direction
+
         // Method to set the direction
         public void SetDirection(string direction)
         {
             // Allow only valid directions
             if (direction == "Up" || direction == "Down" || direction == "Stationary")
             {
-                Direction = direction; // Set the current direction
+                _direction = direction; // Set the current direction
             }
             else
             {
