@@ -27,8 +27,6 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Models
         // Mark the Direction property as virtual to allow overriding
         public virtual string Direction => IsMoving ? (CurrentFloor < TargetFloor ? "Up" : "Down") : "Stationary";
 
-        public bool IsOriginal { get; internal set; }
-
         // Constructor to initialize the elevator with an ID, maximum floor, and initial passengers
         public Elevator(int id, int maxFloor, int maxPassengerCapacity, int currentFloor = 1, int currentPassengers = 0)
         {

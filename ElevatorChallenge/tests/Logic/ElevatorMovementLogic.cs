@@ -28,6 +28,9 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Logic
             // Act: Attempt to move the elevator to an invalid floor (6)
             await movementLogic.MoveElevatorToFloor(elevator, 6); // Await the asynchronous call
 
+            // Debug output to verify state
+            Console.WriteLine($"Elevator State - CurrentFloor: {elevator.CurrentFloor}, IsMoving: {elevator.IsMoving}, Direction: {elevator.Direction}");
+
             // Assert: Verify that the elevator remains on the current floor (4)
             Assert.Equal(4, elevator.CurrentFloor); // Should remain on the current floor
             Assert.False(elevator.IsMoving); // Should not be moving

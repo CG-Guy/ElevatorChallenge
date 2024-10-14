@@ -6,37 +6,47 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Logic
     {
         public async Task MoveElevatorToFloor(Elevator elevator, int targetFloor)
         {
-            // Ensure that the target floor is within the bounds
+            // Debug output for initial state
+            Console.WriteLine($"Starting MoveElevatorToFloor. Current Floor: {elevator.CurrentFloor}, Target Floor: {targetFloor}, Max Floor: {elevator.MaxFloor}");
+
+            // Check if the target floor is valid
             if (targetFloor < 1 || targetFloor > elevator.MaxFloor)
             {
-                return; // Invalid target floor; do not change the current floor, just return
+                Console.WriteLine($"Invalid target floor: {targetFloor}. Current floor: {elevator.CurrentFloor} (Max: {elevator.MaxFloor})");
+                return; // Early return if the target floor is invalid
             }
 
-            // No need to move if already on the target floor
+            // Debug output for current and target floor
+            Console.WriteLine($"Current Floor: {elevator.CurrentFloor}, Target Floor: {targetFloor}");
+
+            // If already at the target floor, do nothing
             if (targetFloor == elevator.CurrentFloor)
             {
+                Console.WriteLine("Already at the target floor.");
                 return; // No need to move
             }
 
-            // Set the direction based on the target floor
+            // Set direction and start moving
             string direction = targetFloor > elevator.CurrentFloor ? "Up" : "Down";
-            elevator.IsMoving = true; // Set IsMoving to true
+            elevator.IsMoving = true;
+            elevator.SetDirection(direction);
+            Console.WriteLine($"Elevator is moving {direction}.");
 
-            // Use the method to set the direction
-            elevator.SetDirection(direction); // Call the method to set direction
+            // Simulate movement delay
+            var movementTime = CalculateMovementTime(elevator.CurrentFloor, targetFloor, elevator.TimePerFloor);
+            Console.WriteLine($"Simulating movement delay of {movementTime} milliseconds.");
+            await Task.Delay(movementTime);
 
-            // Simulate movement to the target floor
-            await Task.Delay((int)CalculateMovementTime(elevator.CurrentFloor, targetFloor, elevator.TimePerFloor));
-
-            // Update the current floor after movement
+            // Update current floor after movement
             elevator.CurrentFloor = targetFloor; // Move to target floor
-            elevator.IsMoving = false; // Set IsMoving to false
-            elevator.SetDirection("Stationary"); // Reset direction to stationary
+            elevator.IsMoving = false; // Not moving anymore
+            elevator.SetDirection("Stationary");
+            Console.WriteLine($"Elevator has arrived at floor {elevator.CurrentFloor}. Status: {elevator.Direction}, Is Moving: {elevator.IsMoving}");
         }
 
-        private double CalculateMovementTime(int currentFloor, int targetFloor, int timePerFloor)
+        private int CalculateMovementTime(int currentFloor, int targetFloor, int timePerFloor)
         {
-            return Math.Abs(targetFloor - currentFloor) * timePerFloor; // Calculate movement time based on floors
+            return Math.Abs(targetFloor - currentFloor) * timePerFloor; // Simplified calculation
         }
     }
 }
