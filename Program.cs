@@ -43,9 +43,9 @@ namespace ElevatorChallenge
                 }
 
                 // Validate the floor input
-                if (!int.TryParse(floorInput, out int floorNumber) || floorNumber < 0 || floorNumber > 5)
+                if (!int.TryParse(floorInput, out int floorNumber) || floorNumber < 1 || floorNumber > 5)
                 {
-                    Console.WriteLine("Invalid floor number. Please enter a number between 0 and 5.");
+                    Console.WriteLine("Invalid floor number. Please enter a number between 1 and 5.");
                     continue;
                 }
 
