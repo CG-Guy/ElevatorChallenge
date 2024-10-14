@@ -1,4 +1,5 @@
 ﻿using ElevatorChallenge.ElevatorChallenge.src.Models;
+using ElevatorChallenge.Services;
 using System;
 
 namespace ElevatorChallenge.ElevatorChallenge.src.Services
@@ -12,6 +13,7 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Services
             _elevator = elevator;
         }
 
+        // Adds a passenger to the elevator if there is space
         public void AddPassenger(Passenger passenger)
         {
             if (!_elevator.HasSpaceFor(1))
@@ -22,6 +24,7 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Services
             Console.WriteLine($"Passenger added. Current count: {_elevator.PassengerCount}");
         }
 
+        // Removes a passenger if there are any passengers present
         public void RemovePassenger()
         {
             if (_elevator.PassengerCount > 0)
@@ -35,19 +38,27 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Services
             }
         }
 
+        // Prints the current status of the elevator
         public void UpdateElevatorStatus()
         {
             Console.WriteLine($"Elevator on floor {_elevator.CurrentFloor}, " +
-                $"Direction: {_elevator.Direction}, " +
-                $"Moving: {_elevator.IsMoving}, " +
-                $"Passengers: {_elevator.PassengerCount}/{_elevator.MaxPassengerCapacity}");
+                              $"Direction: {_elevator.Direction}, " +
+                              $"Moving: {_elevator.IsMoving}, " +
+                              $"Passengers: {_elevator.PassengerCount}/{_elevator.MaxPassengerCapacity}");
         }
 
-        // New method to request an elevator to a floor
-        public void RequestElevator(int floor, int passengersWaiting)
+        // Method to request an elevator to a floor (delegates to ElevatorService)
+        public void RequestElevator(ElevatorService elevatorService, int floor, int passengersWaiting)
         {
-            Console.WriteLine($"Requesting elevator to floor {floor} for {passengersWaiting} passengers.");
-            // Here you would link to the ElevatorService to handle the request
+            if (_elevator.IsInService) // Check if the elevator is in service before proceeding
+            {
+                Console.WriteLine($"Requesting elevator to floor {floor} for {passengersWaiting} passengers.");
+                elevatorService.AssignElevator(floor, passengersWaiting); // Delegates to ElevatorService
+            }
+            else
+            {
+                Console.WriteLine($"Elevator {_elevator.Id} is not in service and cannot be dispatched.");
+            }
         }
     }
 }

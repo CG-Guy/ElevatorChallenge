@@ -12,6 +12,7 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Models
         public bool IsMoving { get; set; }
         public int MaxFloor { get; private set; }
         public int TimePerFloor { get; private set; } = 1; // Default time per floor (in seconds)
+        public bool IsInService { get; set; }
 
         // Mark the Stop method as virtual to allow overriding
         public virtual void Stop()
@@ -26,11 +27,13 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Models
         // Mark the Direction property as virtual to allow overriding
         public virtual string Direction => IsMoving ? (CurrentFloor < TargetFloor ? "Up" : "Down") : "Stationary";
 
+        public bool IsOriginal { get; internal set; }
+
         // Constructor to initialize the elevator with an ID, maximum floor, and initial passengers
         public Elevator(int id, int maxFloor, int maxPassengerCapacity, int currentFloor = 1, int currentPassengers = 0)
         {
             Id = id;
-            MaxFloor = maxFloor;
+           MaxFloor = maxFloor;
             MaxPassengerCapacity = maxPassengerCapacity;
             CurrentFloor = currentFloor; // Ensure this is set correctly
             PassengerCount = currentPassengers; // Set initial passengers

@@ -8,21 +8,14 @@ namespace ElevatorChallenge.Services
 {
     public class ElevatorService
     {
-        private readonly List<Elevator> _elevators;
+        private readonly List<Elevator> _elevators = new List<Elevator>();
         private readonly ElevatorLogic _elevatorLogic;
         private readonly ElevatorMovementLogic _elevatorMovementLogic;
-
-        private List<Elevator> elevators;
 
         // Accept IEnumerable instead of List
         public ElevatorService(IEnumerable<Elevator> elevators)
         {
-            this.elevators = elevators.ToList(); // Convert to List if needed
-        }
-
-        public ElevatorService(List<Elevator> elevators)
-        {
-            _elevators = elevators ?? throw new ArgumentNullException(nameof(elevators));
+            _elevators = elevators?.ToList() ?? throw new ArgumentNullException(nameof(elevators)); // Ensure elevators are not null
             _elevatorLogic = new ElevatorLogic();
             _elevatorMovementLogic = new ElevatorMovementLogic();
         }
@@ -33,13 +26,18 @@ namespace ElevatorChallenge.Services
             Elevator nearestElevator = null;
             int minDistance = int.MaxValue;
 
-            // Find the nearest elevator that can take the waiting passengers
             foreach (var elevator in _elevators)
             {
-                int distance = Math.Abs(elevator.CurrentFloor - requestFloor);
+                if (elevator == null)
+                {
+                    Console.WriteLine("Elevator is null.");
+                    continue; // Skip to the next iteration
+                }
 
-                // Check if this elevator can take the additional passengers
-                if (_elevatorLogic.CanTakePassengers(elevator, passengersWaiting) &&
+                Console.WriteLine($"Checking Elevator {elevator.Id} on floor {elevator.CurrentFloor}");
+                int distance = Math.Abs(elevator.CurrentFloor - requestFloor);
+                if (elevator.IsInService && // Ensure elevator is in service
+                    _elevatorLogic.CanTakePassengers(elevator, passengersWaiting) &&
                     distance < minDistance)
                 {
                     minDistance = distance;
@@ -74,7 +72,12 @@ namespace ElevatorChallenge.Services
         public void RequestElevator(int requestFloor, int passengersWaiting)
         {
             Console.WriteLine($"Requesting elevator to floor {requestFloor} for {passengersWaiting} passengers...");
-            AssignElevator(requestFloor, passengersWaiting);
+            var assignedElevator = AssignElevator(requestFloor, passengersWaiting); // Use AssignElevator method
+
+            if (assignedElevator == null)
+            {
+                Console.WriteLine("Request failed: No available elevators.");
+            }
         }
 
         // Method to retrieve the current status of elevators
