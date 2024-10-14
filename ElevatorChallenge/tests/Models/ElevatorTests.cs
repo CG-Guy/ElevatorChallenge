@@ -10,10 +10,10 @@ namespace ElevatorChallenge.Tests
         public void Elevator_Initialization_Should_Set_Default_Values()
         {
             // Arrange: Create a new passenger elevator with max floor 10, current floor 1, max capacity 5, and no passengers initially.
-            var elevator = new PassengerElevator(1, 10, 5); // Current floor and passengers are set to defaults in the constructor
+            var elevator = new PassengerElevator(1, 1, 5); // Set current floor to 1
 
             // Act & Assert: Check that MaxFloor, CurrentFloor, and MaxPassengerCapacity are set correctly.
-            Assert.Equal(10, elevator.MaxFloor);
+            Assert.Equal(10, elevator.MaxFloor); // This should remain the same
             Assert.Equal(1, elevator.CurrentFloor); // Expecting current floor to be set to 1
             Assert.Equal(5, elevator.MaxPassengerCapacity);
             Assert.Equal(0, elevator.PassengerCount); // This should now pass

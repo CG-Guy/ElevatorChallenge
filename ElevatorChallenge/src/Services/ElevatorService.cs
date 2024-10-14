@@ -25,6 +25,7 @@ namespace ElevatorChallenge.Services
         {
             Elevator nearestElevator = null;
             int minDistance = int.MaxValue;
+            int fewestPassengers = int.MaxValue; // To track the minimum passenger count
 
             foreach (var elevator in _elevators)
             {
@@ -36,12 +37,18 @@ namespace ElevatorChallenge.Services
 
                 Console.WriteLine($"Checking Elevator {elevator.Id} on floor {elevator.CurrentFloor}");
                 int distance = Math.Abs(elevator.CurrentFloor - requestFloor);
+
                 if (elevator.IsInService && // Ensure elevator is in service
-                    _elevatorLogic.CanTakePassengers(elevator, passengersWaiting) &&
-                    distance < minDistance)
+                    _elevatorLogic.CanTakePassengers(elevator, passengersWaiting))
                 {
-                    minDistance = distance;
-                    nearestElevator = elevator; // Set the nearest elevator
+                    // Check for nearest elevator or, if equidistant, with fewer passengers
+                    if (distance < minDistance ||
+                        (distance == minDistance && elevator.PassengerCount < fewestPassengers))
+                    {
+                        minDistance = distance;
+                        fewestPassengers = elevator.PassengerCount; // Update the fewest passengers
+                        nearestElevator = elevator; // Set the nearest elevator
+                    }
                 }
             }
 

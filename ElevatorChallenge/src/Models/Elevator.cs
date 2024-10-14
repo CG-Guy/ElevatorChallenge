@@ -38,6 +38,7 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Models
             CurrentFloor = currentFloor; // Ensure this is set correctly
             PassengerCount = currentPassengers; // Set initial passengers
             IsMoving = false;
+            IsInService = true;
         }
 
         // Abstract method for moving the elevator
