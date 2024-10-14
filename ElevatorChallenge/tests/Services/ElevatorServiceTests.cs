@@ -2,6 +2,7 @@
 using ElevatorChallenge.ElevatorChallenge.src.Services;
 using ElevatorChallenge.Services;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Xunit;
 
 namespace ElevatorChallenge.ElevatorChallenge.tests.Services
@@ -15,9 +16,15 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Services
             // Arrange: Create elevators with max floor, max capacity, and current floor settings
             var elevators = new List<Elevator>
             {
-                new PassengerElevator (1, 1, 5), // Elevator with ID 1, Max floor 5, Capacity 5, on floor 1
-                new PassengerElevator (2, 2, 5)  // Elevator with ID 2, Max floor 5, Capacity 5, on floor 5
+                new PassengerElevator(1, 1, 5), // Elevator with ID 1, Max floor 10, Capacity 5, on floor 1
+                new PassengerElevator(2, 5, 5)  // Elevator with ID 2, Max floor 10, Capacity 5, on floor 5
             };
+
+            // Ensure the elevators are in service for assignment
+            foreach (var elevator in elevators)
+            {
+                elevator.IsInService = true; // Set the elevator in service for the test
+            }
 
             var elevatorService = new ElevatorService(elevators);
 
@@ -26,7 +33,7 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Services
 
             // Assert: Ensure the closest elevator is chosen
             Assert.NotNull(assignedElevator);
-            //Assert.Equal(1, assignedElevator.CurrentFloor); // Nearest elevator should be the one at floor 1
+            Assert.Equal(1, assignedElevator.CurrentFloor); // Nearest elevator should be the one at floor 1
         }
 
         [Fact]
@@ -35,9 +42,10 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Services
             // Arrange: Create elevators with different states
             var elevators = new List<Elevator>
             {
-                new PassengerElevator (1, 1, 5), // Elevator with ID 1, Max floor 5, Capacity 5, on floor 1
-                new PassengerElevator (2, 2, 5)  // Elevator with ID 2, Max floor 5, Capacity 5, on floor 5
+                new PassengerElevator(1, 1, 5) { IsInService = true }, // Elevator 1, on floor 1, in service
+                new PassengerElevator(2, 5, 5) { IsInService = true }  // Elevator 2, on floor 5, in service
             };
+
             elevators[0].AddPassengers(3); // Elevator 1 with 3 passengers
             elevators[1].AddPassengers(1); // Elevator 2 with 1 passenger
 
@@ -52,7 +60,7 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Services
 
             // Assert: Ensure the nearest elevator with fewer passengers is chosen
             Assert.NotNull(assignedElevator);
-            //Assert.Equal(5, assignedElevator.CurrentFloor); // Elevator 2 at floor 5 should be chosen
+            Assert.Equal(2, assignedElevator.Id); // Elevator 2 should be chosen (at floor 5)
         }
 
         // Test to check if the statuses of all elevators are returned correctly

@@ -72,10 +72,12 @@ namespace ElevatorChallenge
                 // Validate input
                 if (int.TryParse(input, out count) && count > 0)
                 {
-                    return count;
+                    return count; // Valid input
                 }
+
                 Console.WriteLine("Invalid number of passengers. Please enter a positive number.");
             }
         }
+
     }
 }
