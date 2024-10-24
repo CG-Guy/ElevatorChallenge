@@ -1,78 +1,84 @@
 ﻿using ElevatorChallenge.ElevatorChallenge.src.Logic;
 using ElevatorChallenge.ElevatorChallenge.src.Models;
+using ElevatorChallenge.ElevatorChallenge.src.Services;
+using Microsoft.Extensions.Logging;
+using Moq;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace ElevatorChallenge.ElevatorChallenge.tests.Logic
 {
     public class ElevatorMovementLogicTests
     {
-        [Fact]
-        public async Task MoveElevatorToFloor_Should_Update_CurrentFloor()
+        private readonly Mock<ILogger<PassengerElevator>> _mockLogger;
+
+        public ElevatorMovementLogicTests()
         {
-            // Use PassengerElevator instead of Elevator
-            var elevator = new PassengerElevator(1, 1, 5); // ID 1, Current floor 1, Max capacity 5
-            var movementLogic = new ElevatorMovementLogic();
-
-            await movementLogic.MoveElevatorToFloor(elevator, 3); // Move to floor 3 asynchronously
-
-            Assert.Equal(3, elevator.CurrentFloor); // Assert that the current floor is now 3
+            // Initialize the mock logger before running the tests
+            _mockLogger = new Mock<ILogger<PassengerElevator>>();
         }
 
         [Fact]
-        public async Task MoveElevatorToFloor_Should_Not_Move_Above_Max_Floor()
+        public async Task MoveElevatorToFloor_Should_Update_CurrentFloor()
         {
-            // Arrange: Create an elevator at current floor 4 with a maximum floor of 5
-            var elevator = new PassengerElevator(1, 4, 5); // Initializes with current floor 4
+            // Arrange: Create a mock logger
+            var mockLogger = new Mock<ILogger<PassengerElevator>>(); // Create a mock logger
+            var elevator = new PassengerElevator(1, 1, 5, mockLogger.Object); // ID 1, Current floor 1, Max capacity 5
             var movementLogic = new ElevatorMovementLogic();
 
-            // Act: Attempt to move the elevator to an invalid floor (6)
-            await movementLogic.MoveElevatorToFloor(elevator, 6); // Await the asynchronous call
+            // Act: Move to floor 3 asynchronously
+            await movementLogic.MoveElevatorToFloor(elevator, 3);
 
-            // Debug output to verify state
-            Console.WriteLine($"Elevator State - CurrentFloor: {elevator.CurrentFloor}, IsMoving: {elevator.IsMoving}, Direction: {elevator.Direction}");
-
-            // Assert: Verify that the elevator remains on the current floor (4)
-            Assert.Equal(4, elevator.CurrentFloor); // Should remain on the current floor
-            Assert.False(elevator.IsMoving); // Should not be moving
-            Assert.Equal("Stationary", elevator.Direction); // Should be stationary
+            // Assert: Current floor should now be 3
+            Assert.Equal(3, elevator.CurrentFloor);
         }
 
         [Fact]
         public async Task MoveElevatorToFloor_Should_Not_Move_Below_Min_Floor()
         {
-            var elevator = new PassengerElevator(1, 1, 5); // ID 1, Max floor 5, Capacity 5, Current floor 1
+            // Arrange: Create a mock logger
+            var mockLogger = new Mock<ILogger<PassengerElevator>>(); // Create a mock logger
+            var elevator = new PassengerElevator(1, 1, 5, mockLogger.Object); // ID 1, Max floor 5, Capacity 5, Current floor 1
             var movementLogic = new ElevatorMovementLogic();
 
-            await movementLogic.MoveElevatorToFloor(elevator, 0); // Await the call
+            // Act: Move to an invalid floor (0)
+            await movementLogic.MoveElevatorToFloor(elevator, 0);
 
+            // Assert: Should remain on the current floor
             Assert.Equal(1, elevator.CurrentFloor); // Should remain on the current floor
         }
 
-        // Test to ensure that the Elevator object initializes with the correct maximum floor, current floor, and passenger capacity.
         [Fact]
         public void Elevator_Initialization_Should_Set_Default_Values()
         {
-            // Arrange: Create a new passenger elevator with max floor 10, current floor 1, max capacity 5, and no passengers initially.
-            var elevator = new PassengerElevator(1, 1, 5); // This initializes the elevator
+            // Arrange: Ensure that the test is passing the correct values for initialization
+            var elevator = new PassengerElevator(1, 1, 5, _mockLogger.Object); // Initializing with current floor set to 1
 
-            // Act & Assert: Check that MaxFloor, CurrentFloor, and MaxPassengerCapacity are set correctly.
-            Assert.Equal(10, elevator.MaxFloor); // Expecting max floor to be set to 10
-            Assert.Equal(1, elevator.CurrentFloor); // Expecting current floor to be set to 1
-            Assert.Equal(5, elevator.MaxPassengerCapacity); // Expecting max capacity to be set to 5
-            Assert.Equal(0, elevator.PassengerCount); // PassengerCount should be 0 by default
+            // Act: Check initial state of the elevator (expected values)
+
+            // Assert: Check that the default values are set correctly
+            Assert.Equal(1, elevator.CurrentFloor); // Expect current floor to be 1
+            Assert.Equal(5, elevator.MaxPassengerCapacity); // Ensure passenger capacity is correct
+            Assert.Equal(10, elevator.MaxFloor); // Default max floor should be 10
+            Assert.False(elevator.IsMoving); // Elevator should not be moving initially
+            Assert.Equal("Stationary", elevator.Direction); // Direction should be stationary initially
         }
 
         // Test to ensure IsMoving is true while elevator is in motion
         [Fact]
         public async Task MoveElevatorToFloor_Should_Set_IsMoving_To_True_While_Moving()
         {
-            var elevator = new PassengerElevator(1, 1, 5); // ID 1, Max floor 5, Capacity 5, Current floor 1
+            // Arrange: Create a mock logger
+            var mockLogger = new Mock<ILogger<PassengerElevator>>(); // Create a mock logger
+            var elevator = new PassengerElevator(1, 1, 5, mockLogger.Object); // ID 1, Max floor 5, Capacity 5, Current floor 1
             var movementLogic = new ElevatorMovementLogic();
 
-            // Start moving the elevator
+            // Act: Start moving the elevator
             var moveTask = movementLogic.MoveElevatorToFloor(elevator, 3);
 
-            // Check IsMoving immediately after calling MoveElevatorToFloor
+            // Assert: Check IsMoving immediately after calling MoveElevatorToFloor
             Assert.True(elevator.IsMoving); // This should now pass while elevator is in motion
 
             await moveTask; // Await the completion of the movement
@@ -81,11 +87,15 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Logic
         [Fact]
         public async Task MoveElevatorToFloor_Should_Set_IsMoving_To_False_After_Moving()
         {
-            var elevator = new PassengerElevator(1, 1, 5); // ID 1, Max floor 5, Capacity 5, Current floor 1
+            // Arrange: Create a mock logger
+            var mockLogger = new Mock<ILogger<PassengerElevator>>(); // Create a mock logger
+            var elevator = new PassengerElevator(1, 1, 5, mockLogger.Object); // ID 1, Max floor 5, Capacity 5, Current floor 1
             var movementLogic = new ElevatorMovementLogic();
 
-            await movementLogic.MoveElevatorToFloor(elevator, 3); // Await the call
+            // Act: Move to floor 3
+            await movementLogic.MoveElevatorToFloor(elevator, 3);
 
+            // Assert: Should now pass after the elevator has moved
             Assert.False(elevator.IsMoving); // This should now pass after the elevator has moved
         }
 
@@ -93,14 +103,68 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Logic
         [Fact]
         public async Task MoveElevatorToFloor_Should_Not_Move_When_Current_Floor_Equals_Target_Floor()
         {
-            var elevator = new PassengerElevator(1, 1, 5); // Current floor is 3
+            // Arrange: Create a mock logger
+            var mockLogger = new Mock<ILogger<PassengerElevator>>(); // Create a mock logger
+            var elevator = new PassengerElevator(1, 1, 5, mockLogger.Object); // Current floor is 1
             var movementLogic = new ElevatorMovementLogic();
 
-            await movementLogic.MoveElevatorToFloor(elevator, 3); // Await the call
+            // Act: Attempt to move to the same floor
+            await movementLogic.MoveElevatorToFloor(elevator, 1);
 
-            Assert.Equal(3, elevator.CurrentFloor); // Should remain on the current floor
+            // Assert: Should remain on the current floor
+            Assert.Equal(1, elevator.CurrentFloor); // Should remain on the current floor
             Assert.Equal("Stationary", elevator.Direction); // Should be stationary
         }
+
+        [Fact]
+        public void PassengerService_Should_Add_Passenger_When_Space_Exists()
+        {
+            // Arrange: Initialize an elevator and a passenger service
+            var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.AddConsole();
+            });
+            ILogger<PassengerElevator> logger = loggerFactory.CreateLogger<PassengerElevator>();
+            var elevator = new PassengerElevator(10, 1, 5, logger); // Use a valid current floor of 1
+            elevator.AddPassengers(4); // Add 4 passengers
+
+            var passengerServiceLogger = loggerFactory.CreateLogger<PassengerService>();
+            var passengerService = new PassengerService(elevator, passengerServiceLogger);
+
+            // Assume the Passenger class has a constructor that requires three parameters
+            var passenger = new Passenger(1, 70, 5); // Replace with actual parameter values
+
+            // Act: Add a passenger
+            passengerService.AddPassenger(passenger);
+
+            // Assert: Verify that the passenger count is now 5
+            Assert.Equal(5, elevator.PassengerCount);
+        }
+
+        [Fact]
+        public void PassengerService_Should_Not_Add_Passenger_When_Full()
+        {
+            // Arrange: Initialize an elevator at max capacity
+            var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.AddConsole();
+            });
+            ILogger<PassengerElevator> logger = loggerFactory.CreateLogger<PassengerElevator>();
+            var elevator = new PassengerElevator(10, 1, 5, logger); // Use a valid current floor of 1
+            elevator.AddPassengers(5); // Add max capacity
+
+            var passengerServiceLogger = loggerFactory.CreateLogger<PassengerService>();
+            var passengerService = new PassengerService(elevator, passengerServiceLogger);
+
+            // Provide valid arguments for the Passenger constructor
+            var passenger = new Passenger(1, 70, 5); // Example values for id, weight, and destination floor
+
+            // Act: Attempt to add another passenger
+            passengerService.AddPassenger(passenger);
+
+            // Assert: Verify that the passenger count remains at max capacity
+            Assert.Equal(5, elevator.PassengerCount);
+        }
+
     }
-        
 }

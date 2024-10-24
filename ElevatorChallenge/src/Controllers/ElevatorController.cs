@@ -1,95 +1,120 @@
-﻿using ElevatorChallenge.ElevatorChallenge.src.Services;
-using ElevatorChallenge.Services;
+﻿using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
+using ElevatorChallenge.ElevatorChallenge.src.Models;
+using Microsoft.Extensions.Logging;
+using System;
 
 namespace ElevatorChallenge.Controllers
 {
-    public class ElevatorController
+    public class ElevatorController : IElevatorController
     {
-        private readonly ElevatorService _elevatorService;
+        private readonly IElevatorService _elevatorService;
+        private readonly ILogger<ElevatorController> _logger;
 
-        public ElevatorController(ElevatorService elevatorService)
+        public ElevatorController(IElevatorService elevatorService, ILogger<ElevatorController> logger)
         {
             _elevatorService = elevatorService;
+            _logger = logger;
         }
 
-        // Entry point for the elevator control system interaction
         public void Start()
         {
             Console.WriteLine("Welcome to the Elevator Control System!");
+
             while (true)
             {
+                // Prompt for floor input
                 string floorInput = PromptForFloor();
                 if (string.Equals(floorInput, "exit", StringComparison.OrdinalIgnoreCase))
                 {
-                    break; // Exit the application
+                    Console.WriteLine("Exiting the Elevator Control System. Goodbye!");
+                    _logger.LogInformation("User exited the Elevator Control System.");
+                    break;
                 }
 
+                // Parse the floor input and check if valid
                 if (int.TryParse(floorInput, out int floor) && floor >= 0)
                 {
+                    // Prompt for the number of passengers waiting
                     int passengers = PromptForPassengers();
                     if (passengers > 0)
                     {
-                        RequestElevator(floor, passengers);
+                        // Check for available elevators before requesting
+                        if (HasAvailableElevators())
+                        {
+                            RequestElevator(floor, passengers);
+                        }
+                        else
+                        {
+                            Console.WriteLine("No elevators available at this time. Please try again later.");
+                            _logger.LogWarning("No elevators available when attempting to request elevator to floor {Floor} for {Passengers} passengers.", floor, passengers);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid passenger count. Please enter a valid number.");
+                        _logger.LogWarning("Invalid passenger count entered: {Passengers}", passengers);
                     }
                 }
                 else
                 {
-                    Console.WriteLine("Invalid floor number. Please try again.");
+                    Console.WriteLine("Invalid floor number. Please enter a valid positive integer.");
+                    _logger.LogWarning("Invalid floor number entered: {FloorInput}", floorInput);
                 }
 
+                // Show the status of all elevators after each request
                 ShowElevatorStatus();
             }
         }
 
-        // Method to prompt user for a floor number
         private string PromptForFloor()
         {
             Console.WriteLine("\nEnter the floor number to call the elevator (or type 'exit' to quit):");
             return Console.ReadLine();
         }
 
-        // Method to prompt user for the number of passengers
         private int PromptForPassengers()
         {
             Console.WriteLine("Enter the number of passengers waiting:");
             while (true)
             {
-                if (int.TryParse(Console.ReadLine(), out int passengers) && passengers > 0)
+                string input = Console.ReadLine();
+                if (int.TryParse(input, out int passengers) && passengers > 0)
                 {
-                    return passengers; // Return valid passenger count
+                    return passengers;
                 }
                 Console.WriteLine("Invalid number of passengers. Please enter a positive number.");
             }
         }
 
-        // Method to request an elevator
         public void RequestElevator(int floor, int passengers)
         {
+            Console.WriteLine($"Requesting elevator to floor {floor} for {passengers} passengers...");
+            _logger.LogInformation($"Requesting elevator to floor {floor} for {passengers} passengers.");
+
+            // Request elevator from the service and assign it
             var elevator = _elevatorService.AssignElevator(floor, passengers);
             if (elevator != null)
             {
-                Console.WriteLine($"Elevator dispatched to floor {floor} with {passengers} passengers.");
+                Console.WriteLine($"Elevator {elevator.Id} assigned to floor {floor} for {passengers} passengers.");
+                _logger.LogInformation($"Elevator {elevator.Id} assigned to floor {floor} for {passengers} passengers.");
             }
             else
             {
-                Console.WriteLine("No available elevators to dispatch.");
+                Console.WriteLine("No available elevators at this time. Please try again later.");
+                _logger.LogWarning("No available elevators for the request to floor {Floor} with {Passengers} passengers.", floor, passengers);
             }
         }
 
-        // Method to show the current status of elevators
         public void ShowElevatorStatus()
         {
-            var elevators = _elevatorService.GetElevatorsStatus();
             Console.WriteLine("\nCurrent Elevator Status:");
+            _elevatorService.ShowElevatorStatus();
+        }
 
-            foreach (var elevator in elevators)
-            {
-                Console.WriteLine($"Elevator ID: {elevator.Id}, " +
-                                  $"Current Floor: {elevator.CurrentFloor}, " +
-                                  $"Moving: {elevator.IsMoving}, " +
-                                  $"Direction: {elevator.Direction}, " + // Updated to use ElevatorDirection
-                                  $"Passengers: {elevator.PassengerCount}/{elevator.MaxPassengerCapacity}"); // Assuming Capacity is the correct property
-            }
+        // Implementing HasAvailableElevators from the IElevatorController interface
+        public bool HasAvailableElevators()
+        {
+            return _elevatorService.HasAvailableElevators();
         }
     }
 }

@@ -1,15 +1,15 @@
-﻿using ElevatorChallenge.ElevatorChallenge.src.Models;
+﻿// File: ElevatorChallenge/ElevatorChallenge/src/Logic/ElevatorLogic.cs
+using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
+using ElevatorChallenge.ElevatorChallenge.src.Models;
+using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace ElevatorChallenge.ElevatorChallenge.src.Logic
 {
-    public class ElevatorLogic
+    public class ElevatorLogic : IElevatorLogic
     {
-        // Finds the nearest available elevator to the requested floor
         public Elevator FindNearestElevator(List<Elevator> elevators, int targetFloor)
         {
-            // Validate input
             if (elevators == null || elevators.Count == 0)
                 return null;
 
@@ -18,10 +18,8 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Logic
 
             foreach (var elevator in elevators)
             {
-                // Calculate the distance from the elevator's current floor to the target floor
                 int distance = Math.Abs(elevator.CurrentFloor - targetFloor);
 
-                // Check if this elevator is closer than the previously found nearest elevator
                 if (distance < minimumDistance)
                 {
                     minimumDistance = distance;
@@ -32,11 +30,15 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Logic
             return nearestElevator;
         }
 
-        // Determine if the elevator has capacity to take more passengers
-        public bool CanTakePassengers(Elevator elevator, int passengersWaiting)
+        public bool CanTakePassengers(PassengerElevator elevator, int additionalPassengers) // Keep using PassengerElevator
         {
-            // Check if adding waiting passengers exceeds the max passenger capacity
-            return (elevator.PassengerCount + passengersWaiting) <= elevator.MaxPassengerCapacity; // Check if within capacity
+            return (elevator.PassengerCount + additionalPassengers) <= elevator.MaxPassengerCapacity;
+        }
+
+        public void UpdateElevatorStatus(Elevator elevator)
+        {
+            Console.WriteLine($"Elevator {elevator.Id} status updated.");
+            // Implement additional logic as needed
         }
     }
 }

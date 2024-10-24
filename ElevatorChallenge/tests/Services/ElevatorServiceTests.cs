@@ -1,23 +1,32 @@
 ﻿using ElevatorChallenge.ElevatorChallenge.src.Models;
 using ElevatorChallenge.ElevatorChallenge.src.Services;
-using ElevatorChallenge.Services;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using Xunit;
+using Moq;
+using ElevatorChallenge.Services;
 
 namespace ElevatorChallenge.ElevatorChallenge.tests.Services
 {
     public class ElevatorServiceTests
     {
+        private readonly Mock<ILogger<PassengerElevator>> _loggerMock;
+
+        public ElevatorServiceTests()
+        {
+            // Initialize the logger mock for tests
+            _loggerMock = new Mock<ILogger<PassengerElevator>>();
+        }
+
         // Test to check if the nearest elevator is assigned correctly
         [Fact]
         public void AssignElevator_Should_Return_Nearest_Elevator()
         {
             // Arrange: Create elevators with max floor, max capacity, and current floor settings
-            var elevators = new List<Elevator>
+            var elevators = new List<PassengerElevator>
             {
-                new PassengerElevator(1, 1, 5), // Elevator with ID 1, Max floor 10, Capacity 5, on floor 1
-                new PassengerElevator(2, 5, 5)  // Elevator with ID 2, Max floor 10, Capacity 5, on floor 5
+                new PassengerElevator(1, 1, 5, _loggerMock.Object), // Elevator with ID 1, on floor 1
+                new PassengerElevator(2, 5, 5, _loggerMock.Object)  // Elevator with ID 2, on floor 5
             };
 
             // Ensure the elevators are in service for assignment
@@ -40,10 +49,10 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Services
         public void AssignElevator_Should_Return_Nearest_Elevator_With_Fewer_Passengers()
         {
             // Arrange: Create elevators with different states
-            var elevators = new List<Elevator>
+            var elevators = new List<PassengerElevator>
             {
-                new PassengerElevator(1, 1, 5) { IsInService = true }, // Elevator 1, on floor 1, in service
-                new PassengerElevator(2, 5, 5) { IsInService = true }  // Elevator 2, on floor 5, in service
+                new PassengerElevator(1, 1, 5, _loggerMock.Object) { IsInService = true }, // Elevator 1, on floor 1
+                new PassengerElevator(2, 5, 5, _loggerMock.Object) { IsInService = true }  // Elevator 2, on floor 5
             };
 
             elevators[0].AddPassengers(3); // Elevator 1 with 3 passengers
@@ -53,10 +62,6 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Services
 
             // Act: Request for floor 3, assign based on proximity and load
             var assignedElevator = elevatorService.AssignElevator(3, 1);
-
-            // Debugging Output
-            Console.WriteLine($"Assigned Elevator ID: {assignedElevator?.Id}");
-            Console.WriteLine($"Assigned Elevator Current Floor: {assignedElevator?.CurrentFloor}");
 
             // Assert: Ensure the nearest elevator with fewer passengers is chosen
             Assert.NotNull(assignedElevator);
@@ -68,10 +73,10 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Services
         public void GetElevatorsStatus_Should_Return_All_Elevators_Status()
         {
             // Arrange: Create a list of elevators
-            var elevators = new List<Elevator>
+            var elevators = new List<PassengerElevator>
             {
-                new PassengerElevator (1, 1, 5), // Elevator with ID 1, Max floor 5, Capacity 5, on floor 1
-                new PassengerElevator (2, 2, 5)  // Elevator with ID 2, Max floor 5, Capacity 5, on floor 5
+                new PassengerElevator(1, 1, 5, _loggerMock.Object), // Elevator with ID 1, on floor 1
+                new PassengerElevator(2, 2, 5, _loggerMock.Object)  // Elevator with ID 2, on floor 2
             };
             elevators[0].AddPassengers(0); // No passengers in elevator 1
             elevators[1].AddPassengers(2); // 2 passengers in elevator 2
@@ -92,7 +97,7 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Services
         public void AssignElevator_Should_Return_Null_When_No_Elevators_Available()
         {
             // Arrange: Create an empty list of elevators
-            var elevators = new List<Elevator>();
+            var elevators = new List<PassengerElevator>();
             var elevatorService = new ElevatorService(elevators);
 
             // Act: Try to assign an elevator
@@ -107,7 +112,7 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Services
         public void GetElevatorsStatus_Should_Return_Empty_When_No_Elevators()
         {
             // Arrange: Create an empty list of elevators
-            var elevators = new List<Elevator>();
+            var elevators = new List<PassengerElevator>();
             var elevatorService = new ElevatorService(elevators);
 
             // Act: Get the status of all elevators
