@@ -1,4 +1,5 @@
-﻿using ElevatorChallenge.ElevatorChallenge.src.Logic;
+﻿using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
+using ElevatorChallenge.ElevatorChallenge.src.Logic;
 using ElevatorChallenge.ElevatorChallenge.src.Models;
 using System;
 using System.Collections.Generic;
@@ -6,16 +7,16 @@ using System.Linq;
 
 namespace ElevatorChallenge.Services
 {
-    public class ElevatorService
+    public class ElevatorService : IElevatorService
     {
-        private readonly List<Elevator> _elevators = new List<Elevator>();
+        private readonly List<Elevator> _elevators;
         private readonly ElevatorLogic _elevatorLogic;
         private readonly ElevatorMovementLogic _elevatorMovementLogic;
 
-        // Accept IEnumerable instead of List
+        // Injecting IEnumerable<Elevator> through DI container
         public ElevatorService(IEnumerable<Elevator> elevators)
         {
-            _elevators = elevators?.ToList() ?? throw new ArgumentNullException(nameof(elevators)); // Ensure elevators are not null
+            _elevators = elevators?.ToList() ?? throw new ArgumentNullException(nameof(elevators));
             _elevatorLogic = new ElevatorLogic();
             _elevatorMovementLogic = new ElevatorMovementLogic();
         }
@@ -25,61 +26,59 @@ namespace ElevatorChallenge.Services
         {
             Elevator nearestElevator = null;
             int minDistance = int.MaxValue;
-            int fewestPassengers = int.MaxValue; // To track the minimum passenger count
+            int fewestPassengers = int.MaxValue;
 
             foreach (var elevator in _elevators)
             {
                 if (elevator == null)
                 {
                     Console.WriteLine("Elevator is null.");
-                    continue; // Skip to the next iteration
+                    continue;
                 }
 
                 Console.WriteLine($"Checking Elevator {elevator.Id} on floor {elevator.CurrentFloor}");
                 int distance = Math.Abs(elevator.CurrentFloor - requestFloor);
 
-                if (elevator.IsInService && // Ensure elevator is in service
-                    _elevatorLogic.CanTakePassengers(elevator, passengersWaiting))
+                if (elevator.IsInService &&
+                    _elevatorLogic.CanTakePassengers((PassengerElevator)elevator, passengersWaiting))
                 {
-                    // Check for nearest elevator or, if equidistant, with fewer passengers
                     if (distance < minDistance ||
                         (distance == minDistance && elevator.PassengerCount < fewestPassengers))
                     {
                         minDistance = distance;
-                        fewestPassengers = elevator.PassengerCount; // Update the fewest passengers
-                        nearestElevator = elevator; // Set the nearest elevator
+                        fewestPassengers = elevator.PassengerCount;
+                        nearestElevator = elevator;
                     }
                 }
             }
 
-            // If we found a valid elevator, move it and assign passengers
             if (nearestElevator != null)
             {
                 try
                 {
-                    nearestElevator.SetMovingStatus(true); // Indicate that the elevator is moving
-                    _elevatorMovementLogic.MoveElevatorToFloor(nearestElevator, requestFloor); // Move to the requested floor
-                    nearestElevator.AddPassengers(passengersWaiting); // Add waiting passengers
-                    nearestElevator.SetMovingStatus(false); // Indicate that the elevator has stopped moving
+                    nearestElevator.SetMovingStatus(true);
+                    nearestElevator.SetDirection(requestFloor > nearestElevator.CurrentFloor ? "Up" : "Down"); // Use SetDirection method
+                    _elevatorMovementLogic.MoveElevatorToFloor(nearestElevator, requestFloor);
+                    nearestElevator.AddPassengers(passengersWaiting);
+                    nearestElevator.SetMovingStatus(false);
 
                     Console.WriteLine($"Elevator {nearestElevator.Id} assigned to floor {requestFloor} with {passengersWaiting} passengers.");
-                    return nearestElevator; // Return the assigned elevator
+                    return nearestElevator;
                 }
-                catch (InvalidOperationException ex) // Handle exceptions related to passenger addition
+                catch (InvalidOperationException ex)
                 {
                     Console.WriteLine($"Error assigning passengers to Elevator {nearestElevator.Id}: {ex.Message}");
                 }
             }
 
             Console.WriteLine("No available elevators to assign.");
-            return null; // Return null if no elevator can be assigned
+            return null;
         }
 
-        // Method to request an elevator
         public void RequestElevator(int requestFloor, int passengersWaiting)
         {
             Console.WriteLine($"Requesting elevator to floor {requestFloor} for {passengersWaiting} passengers...");
-            var assignedElevator = AssignElevator(requestFloor, passengersWaiting); // Use AssignElevator method
+            var assignedElevator = AssignElevator(requestFloor, passengersWaiting);
 
             if (assignedElevator == null)
             {
@@ -87,22 +86,54 @@ namespace ElevatorChallenge.Services
             }
         }
 
-        // Method to retrieve the current status of elevators
         public List<Elevator> GetElevatorsStatus()
         {
-            return _elevators; // Return the list of elevators
+            return _elevators;
         }
 
-        // Method to show the current status of elevators
         public void ShowElevatorStatus()
         {
+            if (_elevators.Count == 0)
+            {
+                Console.WriteLine("No elevators available.");
+                return;
+            }
+
             foreach (var elevator in _elevators)
             {
                 Console.WriteLine($"Elevator {elevator.Id} is on floor {elevator.CurrentFloor}, " +
                                   $"Moving: {elevator.IsMoving}, " +
-                                  $"Direction: {elevator.Direction}, " + // Updated to use ElevatorDirection
-                                  $"Passengers: {elevator.PassengerCount}/{elevator.MaxPassengerCapacity}");
+                                  $"Direction: {elevator.Direction}, " +
+                                  $"Passengers: {elevator.PassengerCount}/{elevator.MaxPassengerCapacity}, " +
+                                  $"In Service: {elevator.IsInService}"); // Added In Service status for clarity
             }
+        }
+
+        // Method to add a new elevator to the service
+        public void AddElevator(Elevator elevator)
+        {
+            if (elevator == null)
+            {
+                throw new ArgumentNullException(nameof(elevator), "Elevator cannot be null.");
+            }
+
+            _elevators.Add(elevator);
+            Console.WriteLine($"Elevator {elevator.Id} added.");
+        }
+
+        // Implementation of the HasAvailableElevators method
+        public bool HasAvailableElevators()
+        {
+            // Check if any elevator is in service and has capacity for more passengers
+            foreach (var elevator in _elevators)
+            {
+                if (elevator.IsInService && elevator.PassengerCount < elevator.MaxPassengerCapacity)
+                {
+                    return true; // There is at least one available elevator
+                }
+            }
+
+            return false; // No elevators are available
         }
     }
 }

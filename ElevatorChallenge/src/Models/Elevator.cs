@@ -1,128 +1,146 @@
-﻿using System;
+﻿using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Threading.Tasks;
 
-namespace ElevatorChallenge.ElevatorChallenge.src.Models
+public abstract class Elevator : IElevator
 {
-    // Represents an Elevator object focusing only on its state.
-    public abstract class Elevator
+    private readonly ILogger<Elevator> logger; // Logger field
+
+    public int Id { get; set; }
+    public int CurrentFloor { get; set; }
+    public int PassengerCount { get; set; }
+    public int MaxPassengerCapacity { get; set; }
+    public bool IsMoving { get; set; }
+    public int MaxFloor { get; set; }
+    public int TimePerFloor { get; set; } = 1; // Default time per floor (in seconds)
+    public int TargetFloor { get; private set; } // Property to track the target floor
+    public bool IsInService { get; set; } = true; // Default value
+
+    // Backing field for Direction
+    private string _direction;
+
+    // Direction property with a public getter and private setter
+    public virtual string Direction
     {
-        public int Id { get; set; }
-        public int CurrentFloor { get; set; }
-        public int PassengerCount { get; private set; }
-        public int MaxPassengerCapacity { get; set; }
-        public bool IsMoving { get; set; }
-        public int MaxFloor { get; private set; }
-        public int TimePerFloor { get; private set; } = 1; // Default time per floor (in seconds)
-        public bool IsInService { get; set; }
+        get => IsMoving ? _direction : "Stationary";
+        private set => _direction = value;
+    }
 
-        // Mark the Stop method as virtual to allow overriding
-        public virtual void Stop()
+    // Constructor to initialize the elevator and logger
+    public Elevator(int id, int maxFloor, int maxPassengerCapacity, ILogger<Elevator> logger, int currentFloor = 1, int currentPassengers = 0)
+    {
+        Id = id;
+        MaxFloor = maxFloor;
+        MaxPassengerCapacity = maxPassengerCapacity;
+        this.logger = logger ?? throw new ArgumentNullException(nameof(logger)); // Ensure logger is not null
+        SetCurrentFloor(currentFloor);
+
+        // Only add passengers if the count is greater than zero
+        if (currentPassengers > 0)
         {
-            IsMoving = false; // Logic to stop the elevator
-            Console.WriteLine($"Elevator {Id} has stopped.");
+            AddPassengers(currentPassengers);
         }
 
-        // Add the TargetFloor property
-        public int TargetFloor { get; set; } // New property to track the target floor
+        IsMoving = false;
+        IsInService = true;
+    }
 
-        // Mark the Direction property as virtual to allow overriding
-        public virtual string Direction => IsMoving ? (CurrentFloor < TargetFloor ? "Up" : "Down") : "Stationary";
-
-        // Constructor to initialize the elevator with an ID, maximum floor, and initial passengers
-        public Elevator(int id, int maxFloor, int maxPassengerCapacity, int currentFloor = 1, int currentPassengers = 0)
+    // Ensure this is the only MoveAsync method in this class
+    public virtual async Task MoveAsync(int floor)
+    {
+        if (floor < 1 || floor > MaxFloor)
         {
-            Id = id;
-           MaxFloor = maxFloor;
-            MaxPassengerCapacity = maxPassengerCapacity;
-            CurrentFloor = currentFloor; // Ensure this is set correctly
-            PassengerCount = currentPassengers; // Set initial passengers
-            IsMoving = false;
-            IsInService = true;
+            throw new ArgumentOutOfRangeException(nameof(floor), "Floor must be within the valid range.");
         }
 
-        // Abstract method for moving the elevator
-        public abstract void Move(int targetFloor);
+        TargetFloor = floor;
 
-        private string _direction; // Private backing field for direction
+        // Determine direction based on current and target floor
+        SetDirection(CurrentFloor > floor ? "Down" : "Up");
+        SetMovingStatus(true);
 
-        // Method to set the direction
-        public void SetDirection(string direction)
+        // Simulate movement (you may replace this with actual delay logic)
+        await Task.Delay(TimePerFloor * Math.Abs(CurrentFloor - TargetFloor) * 1000); // Simulated delay in milliseconds
+
+        CurrentFloor = floor; // Only set after "moving"
+        Stop(); // Stop the elevator after reaching the target floor
+    }
+
+    public virtual void Stop()
+    {
+        SetMovingStatus(false); // Logic to stop the elevator
+        logger.LogInformation($"Elevator {Id} has stopped.");
+    }
+
+    public void SetDirection(string direction)
+    {
+        if (direction != "Up" && direction != "Down" && direction != "Stationary")
+            throw new ArgumentException("Invalid direction. Use 'Up', 'Down', or 'Stationary'.");
+
+        Direction = direction; // Set the direction using the private setter
+    }
+
+    public void AddPassengers(int count)
+    {
+        // Ensure valid passenger count (allow zero but disallow negative values)
+        if (count < 0)
+            throw new ArgumentException("Passenger count cannot be negative.");
+
+        // Check if there is enough space for the passengers
+        if (HasSpaceFor(count))
         {
-            // Allow only valid directions
-            if (direction == "Up" || direction == "Down" || direction == "Stationary")
-            {
-                _direction = direction; // Set the current direction
-            }
-            else
-            {
-                throw new ArgumentException("Invalid direction. Use 'Up', 'Down', or 'Stationary'.");
-            }
+            PassengerCount += count; // Add passengers
+            logger.LogInformation($"{count} passengers added to Elevator {Id}. Current count: {PassengerCount}");
+        }
+        else
+        {
+            logger.LogWarning($"Cannot add {count} passengers. Capacity exceeded for Elevator {Id}.");
+            throw new InvalidOperationException($"Cannot add {count} passengers to Elevator {Id}. Capacity exceeded.");
+        }
+    }
+
+    public void RemovePassengers(int count)
+    {
+        if (count <= 0) throw new ArgumentException("Passenger count must be greater than zero.");
+        if (count > PassengerCount) throw new InvalidOperationException("Cannot remove more passengers than currently on the elevator.");
+        PassengerCount -= count;
+        logger.LogInformation($"{count} passengers removed from Elevator {Id}. Current count: {PassengerCount}");
+    }
+
+    public bool HasSpaceFor(int numberOfPassengers) => (PassengerCount + numberOfPassengers) <= MaxPassengerCapacity;
+
+    // Marked as virtual to allow overriding in derived classes
+    protected virtual void SetCurrentFloor(int floor)
+    {
+        // Validate the floor value to ensure it is within the allowable range
+        if (floor < 1 || floor > MaxFloor)
+        {
+            throw new ArgumentOutOfRangeException(nameof(floor), $"Floor must be within the valid range of 1 to {MaxFloor}.");
         }
 
-        // Method to add passengers
-        public bool AddPassengers(int count)
-        {
-            if (HasSpaceFor(count))
-            {
-                PassengerCount += count;
-                return true; // Successfully added passengers
-            }
-            return false; // Capacity exceeded
-        }
+        // Assign the validated floor to the CurrentFloor property
+        CurrentFloor = floor;
+    }
 
-        // Method to remove passengers
-        public void RemovePassengers(int count)
-        {
-            if (count > PassengerCount)
-            {
-                throw new InvalidOperationException("Cannot remove more passengers than currently on the elevator.");
-            }
-            PassengerCount -= count;
-        }
+    public void SetMovingStatus(bool isMoving)
+    {
+        IsMoving = isMoving;
+        logger.LogInformation($"Elevator {Id} moving status changed to: {isMoving}");
+    }
 
-        // Method to check if there is space for additional passengers
-        public bool HasSpaceFor(int numberOfPassengers)
-        {
-            return (PassengerCount + numberOfPassengers) <= MaxPassengerCapacity;
-        }
+    // Implementing CloseDoors method
+    public void CloseDoors()
+    {
+        logger.LogInformation($"Elevator {Id} doors closed.");
+    }
 
-        // Method to set the current floor, ensuring it's within bounds
-        public void SetCurrentFloor(int floor)
-        {
-            if (floor < 1 || floor > MaxFloor)
-            {
-                throw new ArgumentOutOfRangeException(nameof(floor), "Floor must be within the valid range.");
-            }
-            CurrentFloor = floor;
-        }
+    // New method to check if the elevator is available
+    public bool IsAvailable() => IsInService && HasSpaceFor(1); // Check if it's in service and has space for at least one passenger
 
-        // Method to set the moving status
-        public void SetMovingStatus(bool isMoving)
-        {
-            IsMoving = isMoving;
-        }
-
-        // Method to move the elevator to a specific floor
-        public void MoveToFloor(int floor)
-        {
-            if (floor < 1 || floor > MaxFloor)
-            {
-                throw new ArgumentOutOfRangeException(nameof(floor), "Floor must be within the valid range.");
-            }
-
-            // Determine direction based on current floor and target floor
-            SetDirection(CurrentFloor > floor ? "Down" : "Up");
-            SetMovingStatus(true);
-
-            // Simulate moving to the target floor
-            SetCurrentFloor(floor); // Move to the requested floor
-
-            SetMovingStatus(false);
-            SetDirection("Stationary"); // Reset direction when stopped
-        }
-
-        public override string ToString()
-        {
-            return $"Elevator ID: {Id}, Current Floor: {CurrentFloor}, Moving: {IsMoving}, Direction: {Direction}, Passengers: {PassengerCount}/{MaxPassengerCapacity}";
-        }
+    public override string ToString()
+    {
+        return $"Elevator ID: {Id}, Current Floor: {CurrentFloor}, Moving: {IsMoving}, Direction: {Direction}, " +
+               $"Passengers: {PassengerCount}/{MaxPassengerCapacity}, In Service: {IsInService}";
     }
 }

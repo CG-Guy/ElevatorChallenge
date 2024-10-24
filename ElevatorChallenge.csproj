@@ -15,6 +15,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentAssertions" Version="6.12.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.1" />
+    <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="System.Linq" Version="4.3.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.0.0" /> <!-- Added this line -->
     <PackageReference Include="xunit" Version="2.9.2" />
