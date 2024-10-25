@@ -9,10 +9,9 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Repositories
 {
     public class ElevatorRepository : IElevatorRepository // Implementing the repository interface
     {
-        // Use a thread-safe collection to prevent race conditions
-        private readonly ConcurrentBag<Elevator> _elevators;
+        private readonly ConcurrentBag<Elevator> _elevators; // Thread-safe in-memory storage
 
-        public ElevatorRepository(IEnumerable<Elevator> elevators) // Accept IEnumerable for better flexibility
+        public ElevatorRepository(IEnumerable<Elevator> elevators) // Accept IEnumerable for flexibility
         {
             if (elevators == null)
             {
@@ -24,7 +23,6 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Repositories
 
         public Elevator FindBestElevator(int targetFloor, int passengerCount)
         {
-            // Validate input parameters
             ValidateInput(targetFloor, passengerCount);
 
             // Use LINQ to find available elevators
@@ -35,42 +33,36 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Repositories
             if (!availableElevators.Any())
             {
                 LogWarning("No available elevators found.");
-                return null; // No available elevators
+                return null;
             }
 
             // Select the nearest elevator to the target floor
-            Elevator bestElevator = availableElevators
+            return availableElevators
                 .OrderBy(e => Math.Abs(e.CurrentFloor - targetFloor))
                 .FirstOrDefault();
-
-            return bestElevator;
         }
 
         public bool TryAddElevator(Elevator elevator)
         {
-            // Validate the elevator before adding
             if (elevator == null)
             {
                 throw new ArgumentNullException(nameof(elevator), "Elevator cannot be null.");
             }
 
-            // Optionally, check for duplicate elevators based on ID
             if (_elevators.Any(e => e.Id == elevator.Id))
             {
                 throw new InvalidOperationException($"Elevator with ID {elevator.Id} already exists.");
             }
 
-            // Add the elevator in a thread-safe manner
             _elevators.Add(elevator);
-            return true; // Indicate success
+            return true;
         }
 
-        public IReadOnlyList<Elevator> GetAllElevators() // Return a read-only list to limit external modification
+        public IReadOnlyList<Elevator> GetAllElevators()
         {
-            return _elevators.ToList(); // Return a snapshot of the current state
+            return _elevators.ToList().AsReadOnly();
         }
 
-        // Additional method for the repository interface
         public Elevator GetElevatorById(int id)
         {
             return _elevators.FirstOrDefault(e => e.Id == id);
@@ -90,8 +82,7 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Repositories
 
         private void LogWarning(string message)
         {
-            // Implement a logging mechanism (could be a logger interface or a logging framework)
-            Console.WriteLine($"WARNING: {message}"); // Replace with proper logging
+            Console.WriteLine($"WARNING: {message}");
         }
     }
 }

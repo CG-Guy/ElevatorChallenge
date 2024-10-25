@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 public abstract class Elevator : IElevator
 {
-    private readonly ILogger<Elevator> logger;
-    private readonly SemaphoreSlim semaphore = new(1, 1); // Semaphore for thread-safety
+    public readonly ILogger<Elevator> logger;
+    public readonly SemaphoreSlim semaphore = new(1, 1); // Semaphore for thread-safety
 
     public int Id { get; set; }
     public int CurrentFloor { get; set; }
