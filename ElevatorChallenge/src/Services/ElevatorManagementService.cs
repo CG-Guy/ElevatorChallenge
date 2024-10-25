@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace ElevatorChallenge.Services
 {
-    public class ElevatorManagementService
+    public class ElevatorManagementService : IElevatorManagementService // Implement the interface
     {
         private readonly List<Elevator> _elevators;
         private readonly IApplicationLogger _logger; // Logger for elevator management

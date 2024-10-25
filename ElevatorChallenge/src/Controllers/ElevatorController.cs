@@ -1,5 +1,4 @@
 ﻿using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
-using ElevatorChallenge.ElevatorChallenge.src.Models;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
