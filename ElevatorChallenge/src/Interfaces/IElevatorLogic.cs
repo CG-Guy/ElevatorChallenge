@@ -1,12 +1,7 @@
-﻿// File: ElevatorChallenge/ElevatorChallenge/src/Interfaces/IElevatorLogic.cs
-using ElevatorChallenge.ElevatorChallenge.src.Models;
-
-namespace ElevatorChallenge.ElevatorChallenge.src.Interfaces
+﻿public interface IElevatorLogic
 {
-    public interface IElevatorLogic
-    {
-        Elevator FindNearestElevator(List<Elevator> elevators, int targetFloor);
-        bool CanTakePassengers(PassengerElevator elevator, int passengersWaiting); // Change Elevator to PassengerElevator
-        void UpdateElevatorStatus(Elevator elevator);
-    }
+    Elevator FindNearestElevator(List<Elevator> elevators, int targetFloor);
+    bool CanTakePassengers(IElevator elevator, int passengersWaiting); // Changed to use IElevator
+    void UpdateElevatorStatus(Elevator elevator);
+    IElevator FindNearestElevator(List<IElevator> elevators, int targetFloor);
 }

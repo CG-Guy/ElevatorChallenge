@@ -1,72 +1,71 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
 using ElevatorChallenge.ElevatorChallenge.src.Models;
+using ElevatorChallenge.ElevatorChallenge.src.Repositories;
 using Microsoft.Extensions.Logging;
 
 namespace ElevatorChallenge.ElevatorChallenge.src.Services
 {
-    public class ElevatorControlSystem : IElevatorControlSystem // Ensure this line is correct
+    public class ElevatorControlSystem : IElevatorControlSystem
     {
-        private readonly List<Elevator> _elevators;
+        private readonly ElevatorRepository _elevatorRepository; // Use repository
         private readonly ILogger<ElevatorControlSystem> _logger;
         private readonly object _lock = new object();
 
         // Constructor to accept elevator configurations
         public ElevatorControlSystem(IElevatorFactory elevatorFactory, ILogger<ElevatorControlSystem> logger, List<ElevatorConfig> elevatorConfigs)
         {
-            // Pass the configurations to create elevators
-            _elevators = elevatorFactory.CreateElevators(elevatorConfigs); // No need to pass the logger here
+            // Create elevators using the factory and pass to repository
+            var elevators = elevatorFactory.CreateElevators(elevatorConfigs);
+            _elevatorRepository = new ElevatorRepository(elevators); // Initialize repository
             _logger = logger; // Store the logger for logging operations
         }
 
         // Change the signature to async
         public async Task RequestElevatorAsync(int targetFloor, int passengerCount)
         {
+            Elevator selectedElevator = null;
+
             lock (_lock)
             {
-                Elevator selectedElevator = FindBestElevator(targetFloor, passengerCount);
+                selectedElevator = _elevatorRepository.FindBestElevator(targetFloor, passengerCount);
                 if (selectedElevator != null)
                 {
                     _logger.LogInformation($"Elevator {selectedElevator.Id} is assigned to go to floor {targetFloor}");
-                    // Call MoveAsync instead of Move
-                     selectedElevator.MoveAsync(targetFloor);
                 }
                 else
                 {
                     _logger.LogWarning("No available elevator can accommodate the request.");
+                    return; // Exit early if no elevator is available
                 }
+            }
+
+            // Await MoveAsync outside of the lock to prevent blocking other threads
+            try
+            {
+                await selectedElevator.MoveAsync(targetFloor);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to move Elevator {selectedElevator.Id} to floor {targetFloor}."); // Log the error
             }
         }
 
-        public void InitializeElevators() // Updated method signature
+        public void InitializeElevators()
         {
             lock (_lock)
             {
-                // Example: Initialize with a default GlassElevator; add more as needed
+                // Initialize with various elevator types based on configuration if needed
                 var glassElevator = new GlassElevator(2, 1, 8, (ILogger<GlassElevator>)_logger); // Provide id, currentFloor, maxPassengerCapacity, and logger
-                _elevators.Add(glassElevator);
 
-                // Add other elevator types if necessary
-                // _elevators.Add(new StandardElevator(...)); // Uncomment and implement if needed
+                // Use the TryAddElevator method instead of AddElevator
+                _elevatorRepository.TryAddElevator(glassElevator);
+
+                // Uncomment and implement other elevator types as necessary
+                // var standardElevator = new StandardElevator(...); 
+                // _elevatorRepository.TryAddElevator(standardElevator);
             }
-        }
-
-        private Elevator FindBestElevator(int targetFloor, int passengerCount)
-        {
-            var availableElevators = _elevators
-                .Where(e => e.PassengerCount + passengerCount <= e.MaxPassengerCapacity && !e.IsMoving)
-                .ToList();
-
-            if (!availableElevators.Any()) return null; // No available elevators
-
-            // Select the nearest elevator to the target floor
-            Elevator bestElevator = availableElevators
-                .OrderBy(e => Math.Abs(e.CurrentFloor - targetFloor))
-                .FirstOrDefault();
-
-            return bestElevator;
         }
     }
 }

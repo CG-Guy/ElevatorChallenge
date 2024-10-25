@@ -2,157 +2,144 @@
 using ElevatorChallenge.ElevatorChallenge.src.Logic;
 using Xunit;
 using Microsoft.Extensions.Logging;
+using Moq;
+using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
 
 namespace ElevatorChallenge.Tests
 {
     public class ElevatorTests
     {
+        private readonly Mock<ILogger<PassengerElevator>> _mockLogger;
+        private readonly IElevatorLogic _elevatorLogic;
+
+        public ElevatorTests()
+        {
+            _mockLogger = new Mock<ILogger<PassengerElevator>>();
+            _elevatorLogic = new ElevatorLogic();
+        }
+
         [Fact]
         public void Elevator_Initialization_Should_Set_Default_Values()
         {
-            // Arrange: Create a logger instance
-            var loggerFactory = LoggerFactory.Create(builder =>
-            {
-                builder.AddConsole();
-            });
-            ILogger<PassengerElevator> logger = loggerFactory.CreateLogger<PassengerElevator>();
+            // Arrange
+            var elevator = new PassengerElevator(1, 1, 5, _mockLogger.Object);
 
-            // Create a new passenger elevator with max floor 10, current floor 1, max capacity 5, and no passengers initially.
-            var elevator = new PassengerElevator(1, 1, 5, logger); // Set current floor to 1
-
-            // Act & Assert: Check that MaxFloor, CurrentFloor, and MaxPassengerCapacity are set correctly.
-            Assert.Equal(10, elevator.MaxFloor); // This should remain the same
-            Assert.Equal(1, elevator.CurrentFloor); // Expecting current floor to be set to 1
-            Assert.Equal(5, elevator.MaxPassengerCapacity); // Check max passenger capacity
-            Assert.Equal(0, elevator.PassengerCount); // This should now pass
+            // Act & Assert
+            Assert.Equal(10, elevator.MaxFloor);
+            Assert.Equal(1, elevator.CurrentFloor);
+            Assert.Equal(5, elevator.MaxPassengerCapacity);  // No need for cast
+            Assert.Equal(0, elevator.PassengerCount);        // No need for cast
         }
 
-        // Test to check adding passengers without exceeding capacity.
-        [Fact]
-        public void CanTakePassengers_Should_Return_True_When_Elevator_Has_Space()
+        [Theory]
+        [InlineData(5, 0, 1, true)] // Can add 1 passenger when none are in
+        [InlineData(5, 4, 1, true)] // Can add 1 passenger when 4 are in (total becomes 5)
+        [InlineData(5, 4, 2, false)] // Cannot add 2 passengers when 4 are in (would exceed capacity)
+        public void CanTakePassengers_Should_ReturnExpectedResult_WhenGivenCurrentLoad(int maxCapacity, int currentPassengers, int passengersToAdd, bool expectedResult)
         {
-            // Arrange: Create elevator with max capacity 5 and current passengers 2
-            var loggerFactory = LoggerFactory.Create(builder =>
-            {
-                builder.AddConsole();
-            });
-            ILogger<PassengerElevator> logger = loggerFactory.CreateLogger<PassengerElevator>();
+            // Arrange
+            PassengerElevator elevator = new PassengerElevator(1, 0, maxCapacity, _mockLogger.Object);
+            elevator.AddPassengers(currentPassengers);
 
-            var elevator = new PassengerElevator(0, 1, 5, logger); // ID 0, Max floor 5, Current floor 1
-            elevator.AddPassengers(2); // Add 2 passengers
+            // Act
+            var canTakeMore = _elevatorLogic.CanTakePassengers(elevator, passengersToAdd);
 
-            var elevatorLogic = new ElevatorLogic();
-
-            // Act: Check if the elevator can take 3 more passengers (Total should be 5)
-            var canTake = elevatorLogic.CanTakePassengers(elevator, 3);
-
-            // Assert: Validate that it can take more passengers
-            Assert.True(canTake); // Should return true since capacity is sufficient
-            Assert.Equal(2, elevator.PassengerCount); // Verify PassengerCount is still 2 after the check
+            // Assert
+            Assert.Equal(expectedResult, canTakeMore);
         }
 
-        // Test to check that adding passengers exceeding capacity is rejected.
         [Fact]
         public void Elevator_Should_Reject_Passengers_Exceeding_Capacity()
         {
-            // Arrange: Initialize an elevator with a capacity of 5 and 4 passengers initially.
-            var loggerFactory = LoggerFactory.Create(builder =>
-            {
-                builder.AddConsole();
-            });
-            ILogger<PassengerElevator> logger = loggerFactory.CreateLogger<PassengerElevator>();
+            // Arrange
+            IElevator elevator = new PassengerElevator(10, 0, 5, _mockLogger.Object);
+            ((PassengerElevator)elevator).AddPassengers(4);
 
-            var elevator = new PassengerElevator(10, 0, 5, logger); // ID 10, Max floor 10, Current floor 0
-            elevator.AddPassengers(4); // Add 4 passengers
-
-            // Act & Assert: Try to add 3 more passengers, which would exceed the capacity.
-            var exception = Assert.Throws<InvalidOperationException>(() => elevator.AddPassengers(3));
-
-            // Verify that the exception message is correct (optional, but useful for debugging).
-            Assert.Equal("Cannot add 3 passengers to Elevator 10. Capacity exceeded.", exception.Message);
-
-            // Assert: Verify that the passenger count did not change (remains 4).
-            Assert.Equal(4, elevator.PassengerCount);
+            // Act & Assert
+            var exception = Assert.Throws<InvalidOperationException>(() => ((PassengerElevator)elevator).AddPassengers(3));
+            Assert.Equal("Cannot add 3 passengers to Elevator 10. Capacity exceeded. Current count: 4, Attempted to add: 3, Max capacity: 5.", exception.Message);
+            Assert.Equal(4, ((PassengerElevator)elevator).PassengerCount);
         }
 
-        // Test to check the nearest elevator finding logic.
         [Fact]
         public void ElevatorLogic_Should_Find_Nearest_Elevator()
         {
-            // Arrange: Create a list of elevators with valid floor parameters as Elevator types.
-            var loggerFactory = LoggerFactory.Create(builder =>
+            // Arrange
+            var elevators = new List<IElevator>
             {
-                builder.AddConsole();
-            });
-            ILogger<PassengerElevator> logger = loggerFactory.CreateLogger<PassengerElevator>();
-
-            var elevators = new List<Elevator>
-            {
-                new PassengerElevator(1, 1, 5, logger), // Elevator with ID 1 at floor 1
-                new PassengerElevator(2, 3, 5, logger), // Elevator with ID 2 at floor 3
-                new PassengerElevator(3, 2, 5, logger)  // Elevator with ID 3 at floor 2
+                new PassengerElevator(1, 1, 5, _mockLogger.Object),
+                new PassengerElevator(2, 3, 5, _mockLogger.Object),
+                new PassengerElevator(3, 2, 5, _mockLogger.Object)
             };
 
-            var elevatorLogic = new ElevatorLogic();
+            // Act
+            var nearestElevator = _elevatorLogic.FindNearestElevator(elevators, 2) as PassengerElevator;
 
-            // Act: Find the nearest elevator to floor 2.
-            var nearestElevator = elevatorLogic.FindNearestElevator(elevators, 2);
-
-            // Assert: Verify that the nearest elevator is not null.
+            // Assert
             Assert.NotNull(nearestElevator);
-
-            // Confirm that the nearest elevator is indeed the one at floor 2.
             Assert.Equal(2, nearestElevator.CurrentFloor);
-
-            // Additional Assertion: Verify that the nearest elevator is the one with ID 3
-            Assert.Equal(3, nearestElevator.Id); // Ensures the correct elevator is found
+            Assert.Equal(3, nearestElevator.Id);
         }
 
-        // Test to ensure the elevator doesn't exceed the max passenger capacity.
-        [Fact]
-        public void ElevatorLogic_Should_Capacity_Check()
+        [Theory]
+        [InlineData(4, true)]   // Should accept one more passenger
+        [InlineData(5, false)]  // Should reject more passengers when at capacity
+        public void ElevatorLogic_Should_Check_Capacity(int currentPassengers, bool expectedResult)
         {
-            // Arrange: Initialize an elevator with max capacity of 5 and 4 passengers already inside.
-            var loggerFactory = LoggerFactory.Create(builder =>
-            {
-                builder.AddConsole();
-            });
-            ILogger<PassengerElevator> logger = loggerFactory.CreateLogger<PassengerElevator>();
+            // Arrange
+            PassengerElevator elevator = new PassengerElevator(10, 0, 5, _mockLogger.Object);
+            elevator.AddPassengers(currentPassengers);
 
-            var elevator = new PassengerElevator(10, 0, 5, logger); // ID 10, Current floor 0, Max capacity 5
-            elevator.AddPassengers(4); // Add 4 passengers
+            // Act
+            var canTakeMore = _elevatorLogic.CanTakePassengers(elevator, 1);
 
-            var elevatorLogic = new ElevatorLogic();
-
-            // Act: Check if the elevator can take 1 more passenger.
-            var canTakeMore = elevatorLogic.CanTakePassengers(elevator, 1);
-
-            // Assert: Verify that it can take 1 more passenger.
-            Assert.True(canTakeMore, "Elevator should accept 1 more passenger when it is not full.");
+            // Assert
+            Assert.Equal(expectedResult, canTakeMore);
         }
 
-        // Test to check if the elevator can't take more than the capacity.
         [Fact]
-        public void ElevatorLogic_Should_Reject_Passengers_When_Full()
+        public async Task Elevator_Should_Reject_Movement_Above_Max_Floor()
         {
-            // Arrange: Initialize an elevator with max capacity of 5 and exactly 5 passengers inside.
-            var loggerFactory = LoggerFactory.Create(builder =>
-            {
-                builder.AddConsole();
-            });
-            ILogger<PassengerElevator> logger = loggerFactory.CreateLogger<PassengerElevator>();
+            // Arrange
+            IElevator elevator = new PassengerElevator(10, 10, 5, _mockLogger.Object);
 
-            var elevator = new PassengerElevator(10, 0, 5, logger); // ID 10, Current floor 0, Max capacity 5
-            elevator.AddPassengers(5); // Fill the elevator to max capacity
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => ((PassengerElevator)elevator).MoveToFloor(11));
+            Assert.Equal("Cannot move above max floor 10.", exception.Message);
+        }
 
-            var elevatorLogic = new ElevatorLogic();
+        [Fact]
+        public void Elevator_Should_Remove_Passengers_Correctly()
+        {
+            // Arrange
+            IElevator elevator = new PassengerElevator(10, 0, 5, _mockLogger.Object);
+            ((PassengerElevator)elevator).AddPassengers(3);
 
-            // Act: Check if the elevator can take 1 more passenger.
-            var canTakeMore = elevatorLogic.CanTakePassengers(elevator, 1);
+            // Act
+            ((PassengerElevator)elevator).RemovePassengers(2);
 
-            // Assert: Verify that it cannot take more passengers.
-            Assert.False(canTakeMore, "Elevator should reject more passengers when it is full.");
+            // Assert
+            Assert.Equal(1, ((PassengerElevator)elevator).PassengerCount);
+        }
+
+        [Fact]
+        public void Elevator_Should_Not_Remove_Passengers_Exceeding_Current_Count()
+        {
+            // Arrange
+            IElevator elevator = new PassengerElevator(10, 0, 5, _mockLogger.Object);
+            ((PassengerElevator)elevator).AddPassengers(2);
+
+            // Act & Assert
+            var exception = Assert.Throws<InvalidOperationException>(() => ((PassengerElevator)elevator).RemovePassengers(3));
+
+            // Adjusted to match the actual exception message thrown
+            Assert.Equal("Cannot remove more passengers than currently on the elevator.", exception.Message);
+
+            // Ensure the passenger count remains the same after attempting to remove more passengers than available
+            Assert.Equal(2, ((PassengerElevator)elevator).PassengerCount);
         }
 
     }

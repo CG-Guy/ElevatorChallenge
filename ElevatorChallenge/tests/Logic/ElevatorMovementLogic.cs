@@ -1,4 +1,5 @@
-﻿using ElevatorChallenge.ElevatorChallenge.src.Logic;
+﻿using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
+using ElevatorChallenge.ElevatorChallenge.src.Logic;
 using ElevatorChallenge.ElevatorChallenge.src.Models;
 using ElevatorChallenge.ElevatorChallenge.src.Services;
 using Microsoft.Extensions.Logging;
@@ -23,10 +24,19 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Logic
         [Fact]
         public async Task MoveElevatorToFloor_Should_Update_CurrentFloor()
         {
-            // Arrange: Create a mock logger
+            // Arrange: Create mocks for logger and validator
             var mockLogger = new Mock<ILogger<PassengerElevator>>(); // Create a mock logger
+            var mockValidator = new Mock<IElevatorValidator>(); // Create a mock elevator validator
+
+            // Setup the validator mock to return valid results for the test case
+            mockValidator
+                .Setup(v => v.ValidateElevatorMovement(It.IsAny<Elevator>(), It.IsAny<int>()))
+                .Returns(new ElevatorValidationResult { IsValid = true }); // Assume validation is successful
+
             var elevator = new PassengerElevator(1, 1, 5, mockLogger.Object); // ID 1, Current floor 1, Max capacity 5
-            var movementLogic = new ElevatorMovementLogic();
+
+            // Create an instance of ElevatorMovementLogic with the mock validator
+            var movementLogic = new ElevatorMovementLogic(mockValidator.Object);
 
             // Act: Move to floor 3 asynchronously
             await movementLogic.MoveElevatorToFloor(elevator, 3);
@@ -38,12 +48,21 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Logic
         [Fact]
         public async Task MoveElevatorToFloor_Should_Not_Move_Below_Min_Floor()
         {
-            // Arrange: Create a mock logger
+            // Arrange: Create mocks for logger and validator
             var mockLogger = new Mock<ILogger<PassengerElevator>>(); // Create a mock logger
-            var elevator = new PassengerElevator(1, 1, 5, mockLogger.Object); // ID 1, Max floor 5, Capacity 5, Current floor 1
-            var movementLogic = new ElevatorMovementLogic();
+            var mockValidator = new Mock<IElevatorValidator>(); // Create a mock elevator validator
 
-            // Act: Move to an invalid floor (0)
+            // Setup the validator mock to return an invalid result for moving to floor 0
+            mockValidator
+                .Setup(v => v.ValidateElevatorMovement(It.IsAny<Elevator>(), It.IsAny<int>()))
+                .Returns(new ElevatorValidationResult { IsValid = false, ErrorMessage = "Invalid target floor." });
+
+            var elevator = new PassengerElevator(1, 1, 5, mockLogger.Object); // ID 1, Current floor 1, Max capacity 5
+
+            // Create an instance of ElevatorMovementLogic with the mock validator
+            var movementLogic = new ElevatorMovementLogic(mockValidator.Object);
+
+            // Act: Attempt to move to an invalid floor (0)
             await movementLogic.MoveElevatorToFloor(elevator, 0);
 
             // Assert: Should remain on the current floor
@@ -70,10 +89,19 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Logic
         [Fact]
         public async Task MoveElevatorToFloor_Should_Set_IsMoving_To_True_While_Moving()
         {
-            // Arrange: Create a mock logger
+            // Arrange: Create mocks for logger and validator
             var mockLogger = new Mock<ILogger<PassengerElevator>>(); // Create a mock logger
+            var mockValidator = new Mock<IElevatorValidator>(); // Create a mock elevator validator
+
+            // Setup the validator mock to always return valid result
+            mockValidator
+                .Setup(v => v.ValidateElevatorMovement(It.IsAny<Elevator>(), It.IsAny<int>()))
+                .Returns(new ElevatorValidationResult { IsValid = true });
+
             var elevator = new PassengerElevator(1, 1, 5, mockLogger.Object); // ID 1, Max floor 5, Capacity 5, Current floor 1
-            var movementLogic = new ElevatorMovementLogic();
+
+            // Create an instance of ElevatorMovementLogic with the mock validator
+            var movementLogic = new ElevatorMovementLogic(mockValidator.Object);
 
             // Act: Start moving the elevator
             var moveTask = movementLogic.MoveElevatorToFloor(elevator, 3);
@@ -84,13 +112,23 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Logic
             await moveTask; // Await the completion of the movement
         }
 
+        // Test to ensure IsMoving is false after moving
         [Fact]
         public async Task MoveElevatorToFloor_Should_Set_IsMoving_To_False_After_Moving()
         {
-            // Arrange: Create a mock logger
+            // Arrange: Create mocks for logger and validator
             var mockLogger = new Mock<ILogger<PassengerElevator>>(); // Create a mock logger
+            var mockValidator = new Mock<IElevatorValidator>(); // Create a mock elevator validator
+
+            // Setup the validator mock to always return valid result
+            mockValidator
+                .Setup(v => v.ValidateElevatorMovement(It.IsAny<Elevator>(), It.IsAny<int>()))
+                .Returns(new ElevatorValidationResult { IsValid = true });
+
             var elevator = new PassengerElevator(1, 1, 5, mockLogger.Object); // ID 1, Max floor 5, Capacity 5, Current floor 1
-            var movementLogic = new ElevatorMovementLogic();
+
+            // Create an instance of ElevatorMovementLogic with the mock validator
+            var movementLogic = new ElevatorMovementLogic(mockValidator.Object);
 
             // Act: Move to floor 3
             await movementLogic.MoveElevatorToFloor(elevator, 3);
@@ -103,10 +141,24 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Logic
         [Fact]
         public async Task MoveElevatorToFloor_Should_Not_Move_When_Current_Floor_Equals_Target_Floor()
         {
-            // Arrange: Create a mock logger
+            // Arrange: Create mocks for logger and validator
             var mockLogger = new Mock<ILogger<PassengerElevator>>(); // Create a mock logger
+            var mockValidator = new Mock<IElevatorValidator>(); // Create a mock elevator validator
+
+            // Setup the validator mock to return valid result for valid movements
+            mockValidator
+                .Setup(v => v.ValidateElevatorMovement(It.IsAny<Elevator>(), It.IsAny<int>()))
+                .Returns(new ElevatorValidationResult { IsValid = true });
+
+            // Setup the validator mock to return invalid result when moving to the same floor
+            mockValidator
+                .Setup(v => v.ValidateElevatorMovement(It.IsAny<Elevator>(), 1))
+                .Returns(new ElevatorValidationResult { IsValid = false, ErrorMessage = "Already at the target floor." });
+
             var elevator = new PassengerElevator(1, 1, 5, mockLogger.Object); // Current floor is 1
-            var movementLogic = new ElevatorMovementLogic();
+
+            // Create an instance of ElevatorMovementLogic with the mock validator
+            var movementLogic = new ElevatorMovementLogic(mockValidator.Object);
 
             // Act: Attempt to move to the same floor
             await movementLogic.MoveElevatorToFloor(elevator, 1);

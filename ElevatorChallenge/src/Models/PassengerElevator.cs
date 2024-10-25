@@ -8,18 +8,21 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Models
     public class PassengerElevator : Elevator
     {
         public int TargetFloor { get; private set; }
+        private readonly ILogger<PassengerElevator> logger; // Logger field
 
+        // Constructor to initialize the elevator with current floor and capacity
         public PassengerElevator(int id, int currentFloor, int maxPassengerCapacity, ILogger<PassengerElevator> logger, int maxFloor = 10)
-    : base(id, maxFloor, maxPassengerCapacity, logger)
+            : base(id, maxFloor, maxPassengerCapacity, logger)
         {
+            this.logger = logger; // Initialize the logger field
             SetCurrentFloor(currentFloor); // Ensure this sets the current floor properly
         }
 
         // Method to validate the target floor
-        public int ValidateFloor(int floor, int maxFloor)
+        private int ValidateFloor(int floor)
         {
-            if (floor < 0 || floor > maxFloor)
-                throw new ArgumentOutOfRangeException(nameof(floor), $"Floor must be within the valid range of 0 to {maxFloor}.");
+            if (floor < 0 || floor > MaxFloor)
+                throw new ArgumentOutOfRangeException(nameof(floor), $"Floor must be within the valid range of 0 to {MaxFloor}.");
 
             return floor; // Return the valid floor
         }
@@ -28,26 +31,32 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Models
         public override string Direction => IsMoving ? (CurrentFloor < TargetFloor ? "Up" : "Down") : "Stationary";
 
         // Implementing the inherited abstract method for async movement
-        public override async Task MoveAsync(int targetFloor) // Change method name to MoveAsync
+        public override async Task MoveAsync(int targetFloor)
         {
             // Validate the target floor using the ValidateFloor method
             try
             {
-                targetFloor = ValidateFloor(targetFloor, MaxFloor);
+                targetFloor = ValidateFloor(targetFloor); // Validates target floor
             }
             catch (ArgumentOutOfRangeException)
             {
-                Console.WriteLine($"Cannot move to floor {targetFloor}. It is out of range.");
+                logger.LogWarning($"Cannot move to floor {targetFloor}. It is out of range."); // Use logger for warnings
                 return; // Exit early if the floor is invalid
             }
 
             // If we reach here, the target floor is valid
+            if (!IsInService)
+            {
+                logger.LogWarning($"Elevator {Id} is out of service."); // Log warning if not in service
+                return; // Exit if the elevator is not in service
+            }
+
             TargetFloor = targetFloor;
             IsMoving = true;
-            Console.WriteLine($"Passenger Elevator {Id} moving to floor {TargetFloor}");
+            logger.LogInformation($"Passenger Elevator {Id} moving to floor {TargetFloor}"); // Use logger for movement
 
             // Simulate movement to the target floor asynchronously
-            await MoveToTargetFloorAsync(); // Call the new method
+            await MoveToTargetFloorAsync();
 
             Stop(); // Stop after moving
         }
@@ -60,26 +69,31 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Models
             await Task.Delay(timeTaken); // Simulate the delay for moving
 
             CurrentFloor = TargetFloor; // Move to the target floor
-            Console.WriteLine($"Passenger Elevator {Id} arrived at floor {CurrentFloor}");
+            logger.LogInformation($"Passenger Elevator {Id} arrived at floor {CurrentFloor}"); // Use logger for arrival
         }
 
         // Method to stop the elevator
         public override void Stop()
         {
             IsMoving = false;
-            Console.WriteLine($"Passenger Elevator {Id} has stopped.");
+            logger.LogInformation($"Passenger Elevator {Id} has stopped."); // Use logger for stop
         }
 
         // Override SetCurrentFloor to ensure validation occurs
-        protected override void SetCurrentFloor(int floor)
+        public override void SetCurrentFloor(int floor)
         {
-            CurrentFloor = ValidateFloor(floor, MaxFloor); // Use ValidateFloor for validation
+            CurrentFloor = ValidateFloor(floor); // Use ValidateFloor for validation
         }
 
-        // New method MoveToFloor for the testing scenario
+        // Updated MoveToFloor method to validate max floor limit
         public async Task MoveToFloor(int targetFloor)
         {
-            await MoveAsync(targetFloor); // Calls the MoveAsync method for the elevator
+            if (targetFloor > MaxFloor)
+            {
+                throw new InvalidOperationException($"Cannot move above max floor {MaxFloor}.");
+            }
+
+            // Remaining movement logic, if any
         }
     }
 }

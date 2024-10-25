@@ -83,8 +83,19 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Services
                 }
 
                 _logger.LogInformation($"Elevator {_elevator.Id} requested to floor {floor} for {passengersWaiting} passengers.");
-                elevatorService.AssignElevator(floor, passengersWaiting); // Delegates to ElevatorService
-                _logger.LogInformation($"Elevator {_elevator.Id} dispatched to floor {floor}.");
+                var assignedElevatorTask = elevatorService.AssignElevatorAsync(floor, passengersWaiting); // Calls the defined method
+
+                assignedElevatorTask.ContinueWith(task =>
+                {
+                    if (task.Result != null)
+                    {
+                        _logger.LogInformation($"Elevator {task.Result.Id} dispatched to floor {floor}.");
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"No available elevators to dispatch to floor {floor}.");
+                    }
+                });
             }
             else
             {
