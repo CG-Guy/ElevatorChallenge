@@ -1,15 +1,17 @@
 ﻿// File: ElevatorChallenge/ElevatorChallenge/src/Interfaces/IElevatorService.cs
 using ElevatorChallenge.ElevatorChallenge.src.Models;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace ElevatorChallenge.ElevatorChallenge.src.Interfaces
 {
     public interface IElevatorService
     {
-        Elevator AssignElevator(int requestFloor, int passengersWaiting);
-        void RequestElevator(int requestFloor, int passengersWaiting);
+        Task<Elevator> AssignElevatorAsync(int requestFloor, int passengersWaiting);
+        Task RequestElevatorAsync(int requestFloor, int passengersWaiting);
         List<Elevator> GetElevatorsStatus();
         void ShowElevatorStatus();
         bool HasAvailableElevators();
+        string GetElevatorStatus();
     }
 }

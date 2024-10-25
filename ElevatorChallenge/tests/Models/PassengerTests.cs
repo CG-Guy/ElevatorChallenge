@@ -24,7 +24,7 @@ namespace ElevatorChallenge.Tests.Models
         [Fact]
         public void Passenger_Should_Throw_Exception_For_Negative_CurrentFloor()
         {
-            // Arrange, Act & Assert: Verify that passing a negative current floor throws an ArgumentException
+            // Act & Assert: Verify that passing a negative current floor throws an ArgumentException
             Assert.Throws<ArgumentException>(() => new Passenger(1, -1, 5)); // Invalid current floor
         }
 
@@ -32,7 +32,7 @@ namespace ElevatorChallenge.Tests.Models
         [Fact]
         public void Passenger_Should_Throw_Exception_For_Negative_DestinationFloor()
         {
-            // Arrange, Act & Assert: Verify that passing a negative destination floor throws an ArgumentException
+            // Act & Assert: Verify that passing a negative destination floor throws an ArgumentException
             Assert.Throws<ArgumentException>(() => new Passenger(1, 0, -1)); // Invalid destination floor
         }
 
@@ -112,6 +112,45 @@ namespace ElevatorChallenge.Tests.Models
 
             // Assert
             Assert.False(passenger.IsBoarded); // Passenger should not be boarded anymore
+        }
+
+        // Test to ensure an exception is thrown when attempting to board an already boarded passenger
+        [Fact]
+        public void Passenger_Should_Throw_Exception_When_Boarding_Again()
+        {
+            // Arrange
+            var passenger = new Passenger(1, 0, 5);
+            passenger.Board(); // First, board the passenger
+
+            // Act & Assert: Verify that trying to board again throws an exception
+            var exception = Assert.Throws<InvalidOperationException>(() => passenger.Board());
+            Assert.Equal("Cannot board again. Passenger is already on board.", exception.Message); // Adjusted for expected message
+        }
+
+        [Fact]
+        public void Passenger_Should_Throw_Exception_When_Exiting_Not_Boarded()
+        {
+            // Arrange
+            var passenger = new Passenger(1, 0, 5); // Not boarded yet
+
+            // Act & Assert: Verify that trying to exit without boarding throws an exception
+            var exception = Assert.Throws<InvalidOperationException>(() => passenger.Exit());
+            Assert.Equal("Passenger is not boarded and cannot exit.", exception.Message); // Update to match actual message
+        }
+
+        // Additional Test: Validate current floor updates correctly after exit
+        [Fact]
+        public void Passenger_Should_Update_CurrentFloor_After_Exit()
+        {
+            // Arrange
+            var passenger = new Passenger(1, 0, 5);
+            passenger.Board(); // Board the passenger
+
+            // Act
+            passenger.Exit(); // Exit the passenger
+
+            // Assert: Verify that the current floor remains the same after exit
+            Assert.Equal(0, passenger.CurrentFloor); // Assuming current floor remains unchanged
         }
     }
 }

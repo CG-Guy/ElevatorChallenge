@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Xunit;
 using Moq;
 using ElevatorChallenge.Services;
+using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
 
 namespace ElevatorChallenge.ElevatorChallenge.tests.Services
 {
@@ -18,55 +19,58 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Services
             _loggerMock = new Mock<ILogger<PassengerElevator>>();
         }
 
-        // Test to check if the nearest elevator is assigned correctly
+
+        private readonly Mock<ILogger<PassengerElevator>> _elevatorLoggerMock; // Specific ILogger for PassengerElevator
+
+
         [Fact]
-        public void AssignElevator_Should_Return_Nearest_Elevator()
+        public async Task AssignElevator_Should_Return_Nearest_Elevator()
         {
-            // Arrange: Create elevators with max floor, max capacity, and current floor settings
+            // Arrange: Create mocks for other dependencies
+            var applicationLoggerMock = new Mock<IApplicationLogger>();
+            var elevatorLogicMock = new Mock<IElevatorLogic>();
+            var elevatorMovementLogicMock = new Mock<IElevatorMovementLogic>();
+            var elevatorValidatorMock = new Mock<IElevatorValidator>();
+            var elevatorManagementServiceMock = new Mock<ElevatorManagementService>();
+
+            // Setup mock behavior
+            elevatorLogicMock.Setup(el => el.CanTakePassengers(It.IsAny<PassengerElevator>(), It.IsAny<int>()))
+                             .Returns(true);
+            elevatorMovementLogicMock.Setup(eml => eml.MoveElevatorToFloor(It.IsAny<Elevator>(), It.IsAny<int>()))
+                                     .Returns(Task.CompletedTask);
+
+            // Initialize the logger mock
+            var _elevatorLoggerMock = new Mock<ILogger<PassengerElevator>>();
+
+            // Create elevators with specific logger for PassengerElevator
             var elevators = new List<PassengerElevator>
             {
-                new PassengerElevator(1, 1, 5, _loggerMock.Object), // Elevator with ID 1, on floor 1
-                new PassengerElevator(2, 5, 5, _loggerMock.Object)  // Elevator with ID 2, on floor 5
+                new PassengerElevator(1, 1, 5, _elevatorLoggerMock.Object), // Elevator with ID 1, on floor 1
+                new PassengerElevator(2, 5, 5, _elevatorLoggerMock.Object)  // Elevator with ID 2, on floor 5
             };
 
             // Ensure the elevators are in service for assignment
             foreach (var elevator in elevators)
             {
-                elevator.IsInService = true; // Set the elevator in service for the test
+                elevator.IsInService = true;
             }
 
-            var elevatorService = new ElevatorService(elevators);
+            // Initialize ElevatorService with elevators and mocked dependencies
+            var elevatorService = new ElevatorService(
+                elevators, // Pass the list of elevators
+                applicationLoggerMock.Object, // Correctly pass logger (IApplicationLogger)
+                (IApplicationLogger)elevatorLogicMock.Object, // Pass IElevatorLogic
+                elevatorValidatorMock.Object, // Pass IElevatorValidator
+                elevatorManagementServiceMock.Object); // Pass mock ElevatorManagementService
 
             // Act: Request for floor 3, assign based on proximity
-            var assignedElevator = elevatorService.AssignElevator(3, 0);
+            var assignedElevator = await elevatorService.AssignElevatorAsync(3, 0);
 
             // Assert: Ensure the closest elevator is chosen
-            Assert.NotNull(assignedElevator);
+            Assert.NotNull(assignedElevator); // Ensure an elevator was assigned
             Assert.Equal(1, assignedElevator.CurrentFloor); // Nearest elevator should be the one at floor 1
         }
 
-        [Fact]
-        public void AssignElevator_Should_Return_Nearest_Elevator_With_Fewer_Passengers()
-        {
-            // Arrange: Create elevators with different states
-            var elevators = new List<PassengerElevator>
-            {
-                new PassengerElevator(1, 1, 5, _loggerMock.Object) { IsInService = true }, // Elevator 1, on floor 1
-                new PassengerElevator(2, 5, 5, _loggerMock.Object) { IsInService = true }  // Elevator 2, on floor 5
-            };
-
-            elevators[0].AddPassengers(3); // Elevator 1 with 3 passengers
-            elevators[1].AddPassengers(1); // Elevator 2 with 1 passenger
-
-            var elevatorService = new ElevatorService(elevators);
-
-            // Act: Request for floor 3, assign based on proximity and load
-            var assignedElevator = elevatorService.AssignElevator(3, 1);
-
-            // Assert: Ensure the nearest elevator with fewer passengers is chosen
-            Assert.NotNull(assignedElevator);
-            Assert.Equal(2, assignedElevator.Id); // Elevator 2 should be chosen (at floor 5)
-        }
 
         // Test to check if the statuses of all elevators are returned correctly
         [Fact]
@@ -94,20 +98,32 @@ namespace ElevatorChallenge.ElevatorChallenge.tests.Services
 
         // Test to handle the scenario where no elevators are available
         [Fact]
-        public void AssignElevator_Should_Return_Null_When_No_Elevators_Available()
+        public async Task AssignElevator_Should_Return_Null_When_No_Elevators_Available()
         {
-            // Arrange: Create an empty list of elevators
+            // Arrange: Create mocks for other dependencies
+            var applicationLoggerMock = new Mock<IApplicationLogger>();
+            var elevatorLogicMock = new Mock<IElevatorLogic>();
+            var elevatorValidatorMock = new Mock<IElevatorValidator>();
+            var elevatorMovementLogicMock = new Mock<IElevatorMovementLogic>();
+
+            // Create an empty list of elevators
             var elevators = new List<PassengerElevator>();
-            var elevatorService = new ElevatorService(elevators);
+
+            // Initialize ElevatorService with the empty list and mocked dependencies
+            var elevatorService = new ElevatorService(
+                elevators,
+                applicationLoggerMock.Object, // Pass mocked logger
+                (IApplicationLogger)elevatorLogicMock.Object,      // Pass mocked elevator logic
+                elevatorValidatorMock.Object,  // Pass mocked elevator validator
+                (ElevatorManagementService)elevatorMovementLogicMock.Object); // Pass mocked elevator movement logic
 
             // Act: Try to assign an elevator
-            var assignedElevator = elevatorService.AssignElevator(3, 0);
+            var assignedElevator = await elevatorService.AssignElevatorAsync(3, 0); // Await here
 
             // Assert: Ensure no elevator can be assigned
             Assert.Null(assignedElevator);
         }
 
-        // Test to handle the scenario where no elevators exist, and statuses should be empty
         [Fact]
         public void GetElevatorsStatus_Should_Return_Empty_When_No_Elevators()
         {

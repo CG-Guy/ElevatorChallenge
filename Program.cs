@@ -24,7 +24,7 @@ namespace ElevatorChallenge
         private const string ExitCommand = "exit";
         private static readonly object ElevatorRequestLock = new object();
 
-        static void Main(string[] args)
+        static async Task Main(string[] args) // Made Main asynchronous
         {
             var host = CreateHostBuilder(args).Build();
             var logger = host.Services.GetRequiredService<ILogger<Program>>();
@@ -40,7 +40,7 @@ namespace ElevatorChallenge
 
             if (appLogger != null)
             {
-                RunElevatorRequestLoop(appLogger, elevatorController, totalFloors, logger);
+                await RunElevatorRequestLoopAsync(appLogger, elevatorController, totalFloors, logger); // Awaiting the asynchronous loop
             }
             else
             {
@@ -95,9 +95,6 @@ namespace ElevatorChallenge
                     }
                 });
 
-        // Area for Improvement: Consider adding better handling of large-scale requests by 
-        // improving performance through asynchronous processing or a queue system for elevator requests.
-
         private static void RegisterElevators(IServiceCollection services, int totalFloors, List<ElevatorConfig> elevators, Microsoft.Extensions.Logging.ILogger logger)
         {
             if (elevators != null && elevators.Count > 0)
@@ -124,9 +121,6 @@ namespace ElevatorChallenge
             }
         }
 
-        // Improvement Suggestion: Add comments explaining the purpose of the method.
-        // This method allows dynamic loading of the configuration when no config file is present.
-        // Area for Improvement: Consider adding better validation for dynamically entered data.
         private static AppConfig LoadConfigurationDynamically()
         {
             var appConfig = new AppConfig
@@ -162,11 +156,7 @@ namespace ElevatorChallenge
             }
         }
 
-        // Improvement Suggestion: 
-        // Add comments to explain the method.
-        // This loop keeps the system running until the user exits and allows users to request elevators.
-        // Area for Improvement: If handling a large number of elevator requests, this loop could be optimized using async/await or parallel processing.
-        private static void RunElevatorRequestLoop(IApplicationLogger appLogger, IElevatorController elevatorController, int totalFloors, Microsoft.Extensions.Logging.ILogger logger)
+        private static async Task RunElevatorRequestLoopAsync(IApplicationLogger appLogger, IElevatorController elevatorController, int totalFloors, Microsoft.Extensions.Logging.ILogger logger)
         {
             while (true)
             {
@@ -190,7 +180,7 @@ namespace ElevatorChallenge
                         if (elevatorController.HasAvailableElevators())
                         {
                             // Request elevator
-                            elevatorController.RequestElevator(floorNumber, passengers);
+                            await elevatorController.RequestElevator(floorNumber, passengers); // Awaiting the elevator request
                             logger.LogInformation($"Elevator requested to floor {floorNumber} for {passengers} passengers.");
                         }
                         else

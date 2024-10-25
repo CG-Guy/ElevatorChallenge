@@ -1,48 +1,56 @@
-﻿// File: ElevatorChallenge/ElevatorChallenge/src/Logic/ElevatorAssignmentLogic.cs
-using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
+﻿using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
 using ElevatorChallenge.ElevatorChallenge.src.Models;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
-public class ElevatorAssignmentLogic : IElevatorAssignmentLogic
+namespace ElevatorChallenge.ElevatorChallenge.src.Logic
 {
-    private readonly IElevatorLogic _elevatorLogic;
-    private readonly ILogger _logger;
-
-    public ElevatorAssignmentLogic(IElevatorLogic elevatorLogic, ILogger logger)
+    public class ElevatorAssignmentLogic : IElevatorAssignmentLogic
     {
-        _elevatorLogic = elevatorLogic;
-        _logger = logger;
-    }
+        private readonly IElevatorLogic _elevatorLogic;
+        private readonly IElevatorRepository _elevatorRepository; // Reference to the repository
+        private readonly ILogger _logger;
 
-    public Elevator AssignElevator(int requestFloor, int passengersWaiting, IEnumerable<Elevator> elevators)
-    {
-        Elevator nearestElevator = null;
-        int minDistance = int.MaxValue;
-        int fewestPassengers = int.MaxValue;
-
-        foreach (var elevator in elevators)
+        public ElevatorAssignmentLogic(IElevatorLogic elevatorLogic, IElevatorRepository elevatorRepository, ILogger logger)
         {
-            if (elevator == null)
-            {
-                _logger.Info("Elevator is null.");
-                continue;
-            }
-
-            _logger.Info($"Checking Elevator {elevator.Id} on floor {elevator.CurrentFloor}");
-            int distance = Math.Abs(elevator.CurrentFloor - requestFloor);
-
-            if (elevator.IsInService && _elevatorLogic.CanTakePassengers(elevator as PassengerElevator, passengersWaiting))
-            {
-                if (distance < minDistance || (distance == minDistance && elevator.PassengerCount < fewestPassengers))
-                {
-                    minDistance = distance;
-                    fewestPassengers = elevator.PassengerCount;
-                    nearestElevator = elevator;
-                }
-            }
+            _elevatorLogic = elevatorLogic ?? throw new ArgumentNullException(nameof(elevatorLogic));
+            _elevatorRepository = elevatorRepository ?? throw new ArgumentNullException(nameof(elevatorRepository));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        return nearestElevator;
+        public Elevator AssignElevator(int requestFloor, int passengersWaiting, IEnumerable<Elevator> elevators)
+        {
+            if (elevators == null)
+            {
+                throw new ArgumentNullException(nameof(elevators), "Elevators collection cannot be null.");
+            }
+
+            var availableElevators = elevators
+                .Where(elevator => elevator != null && elevator.IsInService && !elevator.IsMoving &&
+                                  _elevatorLogic.CanTakePassengers(elevator, passengersWaiting))
+                .Select(elevator => new
+                {
+                    Elevator = elevator,
+                    Distance = Math.Abs(elevator.CurrentFloor - requestFloor),
+                    PassengerCount = elevator.PassengerCount
+                });
+
+            var nearestElevator = availableElevators
+                .OrderBy(e => e.Distance)
+                .ThenBy(e => e.PassengerCount)
+                .FirstOrDefault()?.Elevator;
+
+            if (nearestElevator == null)
+            {
+                _logger.Info("No available elevators found for the request.");
+            }
+            else
+            {
+                _logger.Info($"Assigning Elevator {nearestElevator.Id} to floor {requestFloor}");
+            }
+
+            return nearestElevator;
+        }
     }
 }
