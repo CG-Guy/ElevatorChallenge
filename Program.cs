@@ -15,6 +15,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ElevatorChallenge.ElevatorChallenge.src.Helpers;
 using ElevatorChallenge.Services;
+using ElevatorChallenge.ElevatorChallenge.src.Logic;
 
 namespace ElevatorChallenge
 {
@@ -74,6 +75,11 @@ namespace ElevatorChallenge
                         services.AddSingleton<IElevatorController, ElevatorController>();
                         services.AddSingleton<IElevatorFactory, ElevatorFactory>();
                         services.AddSingleton<IElevatorService, ElevatorService>();
+                        services.AddSingleton<IElevatorValidator, ElevatorValidator>();
+                        services.AddSingleton<IApplicationLogger, ApplicationLogger>();
+                        services.AddSingleton<IElevatorService, ElevatorService>();
+                        services.AddSingleton<IElevatorController, ElevatorController>();
+
 
                         RegisterElevators(services, buildingConfig.TotalFloors, appConfig.Elevators, logger);
                     }
