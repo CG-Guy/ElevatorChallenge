@@ -1,5 +1,4 @@
 ﻿using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
-using ElevatorChallenge.ElevatorChallenge.src.Models;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -24,7 +23,11 @@ namespace ElevatorChallenge.Controllers
         public void Start()
         {
             Console.WriteLine("Welcome to the Elevator Control System!");
+            ProcessElevatorRequests();
+        }
 
+        private void ProcessElevatorRequests()
+        {
             while (true)
             {
                 string floorInput = PromptForFloor();
@@ -72,7 +75,7 @@ namespace ElevatorChallenge.Controllers
             {
                 // Pass the array of elevators correctly
                 await availableElevator.AddPassengersAsync(passengers, _elevators.ToArray());
-                _logger.LogInformation($"Elevator {availableElevator.Id} is on its way to floor {floor} with {passengers} passengers.");
+                _logger.LogInformation($"Elevator is on its way to floor {floor} with {passengers} passengers.");
             }
             else
             {
@@ -107,7 +110,6 @@ namespace ElevatorChallenge.Controllers
             return _elevators.Any(elevator => elevator.Capacity >= passengers && elevator.IsAvailable());
         }
 
-        // Remove the duplicate definition if it exists
         // Ensure the method signature matches your interface definition
         public async Task RequestElevator(int floor, int passengers)
         {

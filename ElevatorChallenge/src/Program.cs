@@ -1,15 +1,17 @@
-﻿using System.Text.Json;
+﻿// Program.cs
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ElevatorChallenge.Controllers;
-using ElevatorChallenge.ElevatorChallenge.src.Factories;
-using ElevatorChallenge.ElevatorChallenge.src.Helpers;
-using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
-using ElevatorChallenge.ElevatorChallenge.src.Logic;
 using ElevatorChallenge.ElevatorChallenge.src.Models;
+using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
 using ElevatorChallenge.ElevatorChallenge.src.Services.Logging;
+using ElevatorChallenge.ElevatorChallenge.src.Factories;
+using ElevatorChallenge.ElevatorChallenge.src.Logic;
 using ElevatorChallenge.Services;
+using ElevatorChallenge.ElevatorChallenge.src.Helpers;
+using ElevatorChallenge.ElevatorChallenge.src;
 
 namespace ElevatorChallenge
 {
@@ -25,38 +27,31 @@ namespace ElevatorChallenge
         }
 
         private static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureServices((context, services) =>
-                {
-                    services.AddLogging(config =>
-                        config.AddConsole().SetMinimumLevel(LogLevel.Debug));
+             Host.CreateDefaultBuilder(args)
+                 .ConfigureServices((context, services) =>
+                 {
+                     services.AddLogging(config =>
+                         config.AddConsole().SetMinimumLevel(LogLevel.Debug));
 
-                    services.AddSingleton<IApplicationLogger, ApplicationLogger>();
-                    services.AddSingleton<IElevatorController, ElevatorController>();
-                    services.AddSingleton<IElevatorFactory, ElevatorFactory>();
-                    services.AddSingleton<IElevatorService, ElevatorService>();
-                    services.AddSingleton<IElevatorValidator, ElevatorValidator>();
-                    services.AddScoped<ElevatorManagementService>();
-                    services.AddScoped<ElevatorService>();
+                     services.AddSingleton<IApplicationLogger, ApplicationLogger>();
+                     services.AddSingleton<IElevatorController, ElevatorController>();
+                     services.AddSingleton<IElevatorFactory, ElevatorFactory>();
+                     services.AddSingleton<IElevatorService, ElevatorService>();
+                     services.AddSingleton<IElevatorValidator, ElevatorValidator>();
+                     services.AddScoped<ElevatorManagementService>();
 
-                    AppConfig appConfig = LoadAppConfiguration(services);
-                    services.AddSingleton(appConfig.Building);
+                     var appConfig = LoadAppConfiguration(services);
+                     services.AddSingleton(appConfig.Building);
+                     RegisterElevators(services, appConfig.Building.TotalFloors, appConfig.Elevators);
 
-                    RegisterElevators(services, appConfig.Building.TotalFloors, appConfig.Elevators);
-                    RegisterServices(services);
-
-                    services.AddSingleton(provider => new App(
-                        provider.GetRequiredService<IElevatorController>(),
-                        provider.GetRequiredService<IApplicationLogger>(),
-                        provider.GetRequiredService<ILogger<App>>(),
-                        appConfig.Building,
-                        ElevatorRequestLock));
-                });
-
-        private static void RegisterServices(IServiceCollection services)
-        {
-            services.AddTransient<IElevatorController, ElevatorController>();
-        }
+                     // Registering the App class
+                     services.AddSingleton<App>(provider => new App(
+                         provider.GetRequiredService<IElevatorController>(),
+                         provider.GetRequiredService<IApplicationLogger>(),
+                         provider.GetRequiredService<ILogger<App>>(),
+                         appConfig.Building,
+                         ElevatorRequestLock));
+                 });
 
         private static AppConfig LoadAppConfiguration(IServiceCollection services)
         {
@@ -85,7 +80,7 @@ namespace ElevatorChallenge
 
             logger.LogInformation($"Registering {elevators.Count} elevators.");
 
-            List<IElevator> elevatorInstances = new List<IElevator>();
+            var elevatorInstances = new List<IElevator>();
 
             foreach (var elevatorConfig in elevators)
             {
@@ -118,16 +113,13 @@ namespace ElevatorChallenge
 
                 var loggerForNewElevator = loggerFactory.CreateLogger<ConcreteElevator>();
 
-                int newCurrentFloor = 1;
-                int newCurrentPassengers = 0;
-
                 var newElevator = new ConcreteElevator(
                     elevatorConfig.Id,
                     elevatorConfig.MaxPassengerCapacity,
                     totalFloors,
                     loggerForNewElevator,
-                    newCurrentFloor,
-                    newCurrentPassengers
+                    1, // Default floor
+                    0  // Default passengers
                 );
 
                 services.AddSingleton(newElevator);
@@ -165,77 +157,6 @@ namespace ElevatorChallenge
         {
             using var stream = File.OpenRead(path);
             return JsonSerializer.Deserialize<AppConfig>(stream);
-        }
-    }
-
-    public class App
-    {
-        private const string ExitCommand = "exit";
-        private readonly IElevatorController _elevatorController;
-        private readonly IApplicationLogger _appLogger;
-        private readonly ILogger<App> _logger;
-        private readonly int _totalFloors;
-        private readonly object _elevatorRequestLock;
-
-        public App(IElevatorController elevatorController, IApplicationLogger appLogger, ILogger<App> logger, BuildingConfig buildingConfig, object elevatorRequestLock)
-        {
-            _elevatorController = elevatorController;
-            _appLogger = appLogger;
-            _logger = logger;
-            _totalFloors = buildingConfig.TotalFloors;
-            _elevatorRequestLock = elevatorRequestLock;
-        }
-
-        public async Task RunAsync()
-        {
-            _logger.LogInformation("Welcome to the Elevator Control System!");
-            _elevatorController.ShowElevatorStatus();
-
-            await RunElevatorRequestLoopAsync();
-        }
-
-        private async Task RunElevatorRequestLoopAsync()
-        {
-            while (true)
-            {
-                Console.WriteLine("Enter the floor number (or type 'exit' to quit):");
-                var input = Console.ReadLine();
-
-                if (string.Equals(input, ExitCommand, StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger.LogInformation("Exiting the Elevator Control System.");
-                    break;
-                }
-
-                if (int.TryParse(input, out int floorNumber) && floorNumber >= 1 && floorNumber <= _totalFloors)
-                {
-                    Console.WriteLine("Enter the number of passengers waiting:");
-                    if (int.TryParse(Console.ReadLine(), out int passengers) && passengers > 0)
-                    {
-                        lock (_elevatorRequestLock)
-                        {
-                            if (_elevatorController.HasAvailableElevators(passengers))
-                            {
-                                _elevatorController.RequestElevator(floorNumber, passengers);
-                                _logger.LogInformation($"Elevator requested to floor {floorNumber} for {passengers} passengers.");
-                            }
-                            else
-                            {
-                                _logger.LogWarning("No elevators available for the requested number of passengers.");
-                                Console.WriteLine("No elevators available for the requested number of passengers.");
-                            }
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Invalid number of passengers entered.");
-                    }
-                }
-                else
-                {
-                    _logger.LogWarning("Invalid floor number entered.");
-                }
-            }
         }
     }
 }
