@@ -4,13 +4,12 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ElevatorChallenge.Controllers;
 using ElevatorChallenge.ElevatorChallenge.src.Factories;
+using ElevatorChallenge.ElevatorChallenge.src.Helpers;
 using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
+using ElevatorChallenge.ElevatorChallenge.src.Logic;
 using ElevatorChallenge.ElevatorChallenge.src.Models;
 using ElevatorChallenge.ElevatorChallenge.src.Services.Logging;
-using ElevatorChallenge.ElevatorChallenge.src.Helpers;
 using ElevatorChallenge.Services;
-using ElevatorChallenge.ElevatorChallenge.src.Logic;
-using Castle.Core.Logging;
 
 namespace ElevatorChallenge
 {
@@ -18,7 +17,6 @@ namespace ElevatorChallenge
     {
         private const string ConfigFilePath = "elevatorConfig.json";
         private static readonly object ElevatorRequestLock = new object();
-        private static ILogger<Elevator> loggerForElevator;
 
         static async Task Main(string[] args)
         {
@@ -44,10 +42,10 @@ namespace ElevatorChallenge
                     AppConfig appConfig = LoadAppConfiguration(services);
                     services.AddSingleton(appConfig.Building);
 
-                    RegisterServices(services);
                     RegisterElevators(services, appConfig.Building.TotalFloors, appConfig.Elevators);
+                    RegisterServices(services);
 
-                    services.AddSingleton<App>(provider => new App(
+                    services.AddSingleton(provider => new App(
                         provider.GetRequiredService<IElevatorController>(),
                         provider.GetRequiredService<IApplicationLogger>(),
                         provider.GetRequiredService<ILogger<App>>(),
@@ -76,7 +74,7 @@ namespace ElevatorChallenge
 
         private static void RegisterElevators(IServiceCollection services, int totalFloors, List<ElevatorConfig> elevators)
         {
-            var loggerFactory = services.BuildServiceProvider().GetRequiredService<Microsoft.Extensions.Logging.ILoggerFactory>();
+            var loggerFactory = services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
             var logger = services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
 
             if (elevators == null || elevators.Count == 0)
@@ -216,10 +214,8 @@ namespace ElevatorChallenge
                     {
                         lock (_elevatorRequestLock)
                         {
-                            // Check for available elevators for the number of passengers requested
                             if (_elevatorController.HasAvailableElevators(passengers))
                             {
-                                // Request an elevator
                                 _elevatorController.RequestElevator(floorNumber, passengers);
                                 _logger.LogInformation($"Elevator requested to floor {floorNumber} for {passengers} passengers.");
                             }
