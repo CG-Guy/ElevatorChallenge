@@ -21,13 +21,21 @@ namespace ElevatorChallenge.Services
             IApplicationLogger logger,
             IApplicationLogger elevatorLogger,
             IElevatorValidator elevatorValidator,
-            ElevatorManagementService elevatorManagementService)
+            ElevatorManagementService @object)
         {
             _elevators = elevators?.Cast<Elevator>().ToList() ?? throw new ArgumentNullException(nameof(elevators));
             _logger = logger; // Store the logger for logging operations
             _elevatorLogger = elevatorLogger; // Initialize elevator logger
             _elevatorLogic = new ElevatorLogic();
             _elevatorMovementLogic = new ElevatorMovementLogic(elevatorValidator); // Pass the elevatorValidator to the ElevatorMovementLogic constructor
+
+            // Log the registered elevators' initial status
+            foreach (var elevator in _elevators)
+            {
+                _logger.LogInformation($"Elevator {elevator.Id} registered with capacity {elevator.MaxPassengerCapacity}, " +
+                                       $"Current Floor: {elevator.CurrentFloor}, " +
+                                       $"In Service: {elevator.IsInService}");
+            }
         }
 
         // Get status of all elevators
@@ -46,7 +54,7 @@ namespace ElevatorChallenge.Services
                                $"Moving: {elevator.IsMoving}, " +
                                $"Direction: {elevator.Direction}, " +
                                $"Passengers: {elevator.PassengerCount}/{elevator.MaxPassengerCapacity}, " +
-                               $"In Service: {elevator.IsInService}");
+                               $"In Service: {elevator.IsInService}"); // Added In Service status for clarity
             }
 
             return string.Join(Environment.NewLine, statusList);
@@ -63,7 +71,7 @@ namespace ElevatorChallenge.Services
             {
                 if (elevator == null)
                 {
-                    _elevatorLogger.LogWarning("Elevator is null.");
+                    _elevatorLogger.LogWarning("Elevator is null."); // Logging elevator null scenario
                     continue;
                 }
 
@@ -163,10 +171,11 @@ namespace ElevatorChallenge.Services
             }
 
             _elevators.Add(elevator);
-            _elevatorLogger.LogInformation($"Elevator {elevator.Id} added.");
+            _elevatorLogger.LogInformation($"Elevator {elevator.Id} added."); // Log elevator addition
         }
 
         // Check if there are available elevators
+        // Existing HasAvailableElevators method without parameters
         public bool HasAvailableElevators()
         {
             foreach (var elevator in _elevators)
@@ -178,6 +187,20 @@ namespace ElevatorChallenge.Services
             }
 
             return false; // No elevators are available
+        }
+
+        // New method implementation that matches the interface
+        public bool HasAvailableElevators(int passengers)
+        {
+            foreach (var elevator in _elevators)
+            {
+                if (elevator.IsInService && elevator.PassengerCount + passengers <= elevator.MaxPassengerCapacity)
+                {
+                    return true; // There is at least one available elevator that can accommodate the requested passengers
+                }
+            }
+
+            return false; // No elevators are available for the given number of passengers
         }
     }
 }

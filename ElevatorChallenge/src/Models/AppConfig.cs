@@ -6,9 +6,11 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Models
 {
     public class AppConfig
     {
-        public List<ElevatorConfig> Elevators { get; set; }
+        // Initialize the Elevators list to ensure it's not null
+        public List<ElevatorConfig> Elevators { get; set; } = new List<ElevatorConfig>();
         public BuildingConfig Building { get; set; }
 
+        // Property to get the number of elevators
         public int NumberOfElevators => Elevators?.Count ?? 0;
     }
 
@@ -17,7 +19,9 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Models
         public int Id { get; set; }
         public int MaxPassengerCapacity { get; set; }
         private int _currentFloor;
+        private int _currentPassengers;
 
+        // Property to manage the current floor of the elevator
         public int CurrentFloor
         {
             get => _currentFloor;
@@ -28,12 +32,24 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Models
                 _currentFloor = value;
             }
         }
+
+        // Property to manage the current number of passengers
+        public int CurrentPassengers
+        {
+            get => _currentPassengers;
+            set
+            {
+                if (value < 0 || value > MaxPassengerCapacity)
+                    throw new ArgumentOutOfRangeException(nameof(CurrentPassengers), "Current passengers must be between 0 and MaxPassengerCapacity.");
+                _currentPassengers = value;
+            }
+        }
     }
 
     public class BuildingConfig
     {
         public int TotalFloors { get; set; }
-        public List<ElevatorConfig> Elevators { get; set; }
+        //public List<ElevatorConfig> Elevators { get; set; }
     }
 
     public interface IElevator
@@ -56,23 +72,14 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Models
         public int TotalFloors { get; }
 
         private readonly ILogger<ConcreteElevator> _logger;
-        private ILogger logger;
 
         public ConcreteElevator(int id, int maxPassengerCapacity, int totalFloors, ILogger<ConcreteElevator> logger)
         {
             Id = id;
             MaxPassengerCapacity = maxPassengerCapacity;
             TotalFloors = totalFloors;
-            CurrentFloor = 1;
+            CurrentFloor = 1; // Default to the first floor
             _logger = logger;
-        }
-
-        public ConcreteElevator(int id, int maxPassengerCapacity, int totalFloors, ILogger logger)
-        {
-            Id = id;
-            MaxPassengerCapacity = maxPassengerCapacity;
-            TotalFloors = totalFloors;
-            this.logger = logger;
         }
 
         public void MoveToFloor(int floor)

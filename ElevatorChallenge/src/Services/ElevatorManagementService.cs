@@ -55,5 +55,29 @@ namespace ElevatorChallenge.Services
         {
             return _elevators.Any(elevator => elevator.IsInService && elevator.PassengerCount < elevator.MaxPassengerCapacity);
         }
+
+        // Implementation of ManageElevators method
+        public void ManageElevators()
+        {
+            foreach (var elevator in _elevators)
+            {
+                if (!elevator.IsInService)
+                {
+                    _logger.LogWarning($"Elevator {elevator.Id} is out of service.");
+                    continue;
+                }
+
+                // Example logic to manage elevators
+                // This could involve checking their status, moving them to waiting floors, etc.
+                if (elevator.IsMoving)
+                {
+                    _logger.LogInformation($"Elevator {elevator.Id} is currently moving.");
+                }
+                else
+                {
+                    _logger.LogInformation($"Elevator {elevator.Id} is idle at floor {elevator.CurrentFloor}.");
+                }
+            }
+        }
     }
 }
