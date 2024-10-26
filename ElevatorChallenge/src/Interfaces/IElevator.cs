@@ -1,6 +1,6 @@
 ﻿public interface IElevator
 {
-    int CurrentFloor { get; }
+    int CurrentFloor { get; set; }
     string Direction { get; }
     bool IsMoving { get; }
     int PassengerCount { get; }
@@ -8,9 +8,10 @@
     bool IsInService { get; }
     void AddPassengers(int count);
     void RemovePassengers(int count);
-    bool HasSpaceFor(int count); // Ensure this is public
+    bool HasSpaceFor(int count);
     void SetDirection(string direction);
-    Task MoveAsync(int targetFloor); // Keep this asynchronous
+    Task MoveAsync(int targetFloor);
     int Id { get; }
-    // Removed MaxFloor if not needed
+    int Capacity { get; }
+    void GoToFloor(int floor);
 }

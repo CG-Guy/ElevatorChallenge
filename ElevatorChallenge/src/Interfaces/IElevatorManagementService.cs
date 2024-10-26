@@ -9,5 +9,6 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Interfaces
         List<Elevator> GetElevatorsStatus();
         string GetElevatorStatus();
         bool HasAvailableElevators();
+        void ManageElevators(); // Ensure this method is defined in the interface
     }
 }

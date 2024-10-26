@@ -1,6 +1,9 @@
 ﻿using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
+using ElevatorChallenge.ElevatorChallenge.src.Models;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace ElevatorChallenge.Controllers
@@ -9,11 +12,13 @@ namespace ElevatorChallenge.Controllers
     {
         private readonly IElevatorService _elevatorService;
         private readonly ILogger<ElevatorController> _logger;
+        private readonly List<Elevator> _elevators;
 
         public ElevatorController(IElevatorService elevatorService, ILogger<ElevatorController> logger)
         {
             _elevatorService = elevatorService;
             _logger = logger;
+            _elevators = _elevatorService.GetElevatorsStatus();
         }
 
         public void Start()
@@ -22,7 +27,6 @@ namespace ElevatorChallenge.Controllers
 
             while (true)
             {
-                // Prompt for floor input
                 string floorInput = PromptForFloor();
                 if (string.Equals(floorInput, "exit", StringComparison.OrdinalIgnoreCase))
                 {
@@ -31,15 +35,20 @@ namespace ElevatorChallenge.Controllers
                     break;
                 }
 
-                // Parse the floor input and check if valid
                 if (int.TryParse(floorInput, out int floor) && floor >= 0)
                 {
-                    // Prompt for the number of passengers waiting
                     int passengers = PromptForPassengers();
                     if (passengers > 0)
                     {
-                        // Request the elevator
-                        RequestElevator(floor, passengers);
+                        if (HasAvailableElevators(passengers))
+                        {
+                            RequestElevatorAsync(floor, passengers).Wait(); // Ensure to await the task correctly
+                        }
+                        else
+                        {
+                            Console.WriteLine("No elevators available that meet the capacity requirement.");
+                            _logger.LogWarning("No elevators available with sufficient capacity for {Passengers} passengers.", passengers);
+                        }
                     }
                     else
                     {
@@ -55,15 +64,24 @@ namespace ElevatorChallenge.Controllers
             }
         }
 
-        public async Task RequestElevator(int floor, int passengers)
+        public async Task RequestElevatorAsync(int floor, int passengers)
         {
-            // Asynchronous elevator request logic
-            await _elevatorService.RequestElevatorAsync(floor, passengers);
+            var availableElevator = _elevators.FirstOrDefault(elevator => elevator.Capacity >= passengers && elevator.IsAvailable());
+
+            if (availableElevator != null)
+            {
+                // Pass the array of elevators correctly
+                await availableElevator.AddPassengersAsync(passengers, _elevators.ToArray());
+                _logger.LogInformation($"Elevator {availableElevator.Id} is on its way to floor {floor} with {passengers} passengers.");
+            }
+            else
+            {
+                _logger.LogWarning("No available elevators could accommodate the requested number of passengers.");
+            }
         }
 
-        public void ShowElevatorStatus()
+        public async Task ShowElevatorStatus()
         {
-            // Method to display elevator status
             var status = _elevatorService.GetElevatorStatus();
             Console.WriteLine("Current Elevator Status: " + status);
         }
@@ -81,12 +99,19 @@ namespace ElevatorChallenge.Controllers
             {
                 return passengers;
             }
-            return 0; // Invalid input
+            return 0; // Return 0 for invalid input
         }
 
-        public bool HasAvailableElevators()
+        public bool HasAvailableElevators(int passengers)
         {
-            return _elevatorService.HasAvailableElevators();
+            return _elevators.Any(elevator => elevator.Capacity >= passengers && elevator.IsAvailable());
+        }
+
+        // Remove the duplicate definition if it exists
+        // Ensure the method signature matches your interface definition
+        public async Task RequestElevator(int floor, int passengers)
+        {
+            await RequestElevatorAsync(floor, passengers);
         }
     }
 }

@@ -11,7 +11,7 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Interfaces
         Task RequestElevatorAsync(int requestFloor, int passengersWaiting);
         List<Elevator> GetElevatorsStatus();
         void ShowElevatorStatus();
-        bool HasAvailableElevators();
+        bool HasAvailableElevators(int passengers); // Keep this only once
         string GetElevatorStatus();
     }
 }

@@ -12,9 +12,10 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Models
 
         // Constructor to initialize GlassElevator with id, currentFloor, and maxPassengerCapacity
         public GlassElevator(int id, int currentFloor, int maxPassengerCapacity, ILogger<GlassElevator> logger, int maxFloor = 10)
-            : base(id, maxFloor, maxPassengerCapacity, logger, currentFloor, 0) // Pass logger to base constructor
+            : base(id, maxFloor, maxPassengerCapacity, logger, currentFloor) // Pass logger to base constructor
         {
             this.logger = logger; // Initialize the logger field
+            IsMoving = false; // Initialize IsMoving to false
         }
 
         public override async Task MoveAsync(int targetFloor)
@@ -38,8 +39,7 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Models
             catch (Exception ex)
             {
                 logger.LogError(ex, $"Error occurred while moving Glass Elevator {Id} to floor {TargetFloor}: {ex.Message}");
-                // Optionally, reset IsMoving to false if there's an error
-                IsMoving = false;
+                IsMoving = false; // Ensure IsMoving is set to false on error
             }
             finally
             {
@@ -60,9 +60,16 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Models
                 return;
             }
 
-            IsMoving = false; // Assuming IsMoving is accessible
+            IsMoving = false; // Mark as not moving
             logger.LogInformation($"Glass Elevator {Id} has stopped."); // Use logger to log the stop
             base.Stop(); // Call the base Stop method to ensure proper behavior
+        }
+
+        // Implement the MoveToFloor method to return a Task
+        public override async Task MoveToFloor(int targetFloor)
+        {
+            // Use the MoveAsync method to handle the movement
+            await MoveAsync(targetFloor);
         }
     }
 }

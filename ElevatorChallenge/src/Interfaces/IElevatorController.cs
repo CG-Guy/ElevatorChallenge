@@ -6,7 +6,7 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Interfaces
     {
         void Start();
         Task RequestElevator(int floor, int passengers);
-        void ShowElevatorStatus();
-        bool HasAvailableElevators();
+        Task ShowElevatorStatus(); // Change this to Task
+        bool HasAvailableElevators(int passengers);
     }
 }

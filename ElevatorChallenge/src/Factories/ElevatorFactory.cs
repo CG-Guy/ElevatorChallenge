@@ -9,20 +9,20 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Factories
     public class ElevatorFactory : IElevatorFactory
     {
         private readonly int _maxFloor; // Maximum floor for all elevators
-        private readonly ILogger<Elevator> _logger; // Logger for elevator operations
+        private readonly ILoggerFactory _loggerFactory; // Logger factory for creating loggers
 
-        // Constructor to set the max floor and logger for the elevators
-        public ElevatorFactory(int maxFloor, ILogger<Elevator> logger)
+        // Constructor to set the max floor and logger factory for the elevators
+        public ElevatorFactory(int maxFloor, ILoggerFactory loggerFactory)
         {
             if (maxFloor < 1)
             {
                 throw new ArgumentOutOfRangeException(nameof(maxFloor), "Maximum floor must be greater than or equal to 1.");
             }
             _maxFloor = maxFloor;
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger)); // Ensure logger is not null
+            _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory)); // Ensure loggerFactory is not null
         }
 
-        // Create a single elevator instance
+        // Create a single elevator instance with a logger parameter
         public Elevator CreateElevator(int id, int maxPassengerCapacity, int currentFloor, ILogger<Elevator> logger)
         {
             // Debug output
@@ -64,8 +64,11 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Factories
                 // Debug output
                 Console.WriteLine($"Creating elevator with ID: {elevatorId}, Max Passenger Capacity: {config.MaxPassengerCapacity}, Current Floor: {config.CurrentFloor}");
 
-                // Create the elevator using its configuration and the factory's logger
-                elevators.Add(CreateElevator(elevatorId, config.MaxPassengerCapacity, config.CurrentFloor, _logger));
+                // Create a logger specifically for StandardElevator
+                var logger = _loggerFactory.CreateLogger<Elevator>();
+
+                // Create the elevator using its configuration
+                elevators.Add(CreateElevator(elevatorId, config.MaxPassengerCapacity, config.CurrentFloor, logger));
             }
 
             return elevators;

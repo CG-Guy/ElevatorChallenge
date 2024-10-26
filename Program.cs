@@ -1,129 +1,139 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
+﻿using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using ElevatorChallenge.Controllers;
 using ElevatorChallenge.ElevatorChallenge.src.Factories;
 using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
 using ElevatorChallenge.ElevatorChallenge.src.Models;
 using ElevatorChallenge.ElevatorChallenge.src.Services.Logging;
-using ElevatorChallenge.Helpers;
-using ElevatorChallenge.ElevatorChallenge.src.Services;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using ElevatorChallenge.ElevatorChallenge.src.Helpers;
 using ElevatorChallenge.Services;
 using ElevatorChallenge.ElevatorChallenge.src.Logic;
+using Castle.Core.Logging;
 
 namespace ElevatorChallenge
 {
     class Program
     {
         private const string ConfigFilePath = "elevatorConfig.json";
-        private const string ExitCommand = "exit";
         private static readonly object ElevatorRequestLock = new object();
+        private static ILogger<Elevator> loggerForElevator;
 
-        static async Task Main(string[] args) // Made Main asynchronous
+        static async Task Main(string[] args)
         {
-            var host = CreateHostBuilder(args).Build();
-            var logger = host.Services.GetRequiredService<ILogger<Program>>();
-            var elevatorController = host.Services.GetRequiredService<IElevatorController>();
-            var buildingConfig = host.Services.GetRequiredService<BuildingConfig>();
-
-            // Welcome message
-            logger.LogInformation("Welcome to the Elevator Control System!");
-            elevatorController.ShowElevatorStatus();
-
-            int totalFloors = buildingConfig.TotalFloors;
-            var appLogger = host.Services.GetService<IApplicationLogger>();
-
-            if (appLogger != null)
-            {
-                await RunElevatorRequestLoopAsync(appLogger, elevatorController, totalFloors, logger); // Awaiting the asynchronous loop
-            }
-            else
-            {
-                logger.LogError("Unable to resolve IApplicationLogger.");
-            }
+            using var host = CreateHostBuilder(args).Build();
+            await host.Services.GetRequiredService<App>().RunAsync();
         }
 
         private static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
                 .ConfigureServices((context, services) =>
                 {
-                    services.AddLogging(configure =>
-                        configure.AddConsole()
-                                 .SetMinimumLevel(LogLevel.Debug));
+                    services.AddLogging(config =>
+                        config.AddConsole().SetMinimumLevel(LogLevel.Debug));
 
                     services.AddSingleton<IApplicationLogger, ApplicationLogger>();
+                    services.AddSingleton<IElevatorController, ElevatorController>();
+                    services.AddSingleton<IElevatorFactory, ElevatorFactory>();
+                    services.AddSingleton<IElevatorService, ElevatorService>();
+                    services.AddSingleton<IElevatorValidator, ElevatorValidator>();
+                    services.AddScoped<ElevatorManagementService>();
+                    services.AddScoped<ElevatorService>();
 
-                    AppConfig appConfig;
-                    var logger = services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
+                    AppConfig appConfig = LoadAppConfiguration(services);
+                    services.AddSingleton(appConfig.Building);
 
-                    if (File.Exists(ConfigFilePath))
-                    {
-                        logger.LogInformation($"Loading configuration from {ConfigFilePath}");
-                        appConfig = LoadConfiguration(ConfigFilePath);
-                        var buildingConfig = appConfig.Building;
+                    RegisterServices(services);
+                    RegisterElevators(services, appConfig.Building.TotalFloors, appConfig.Elevators);
 
-                        logger.LogInformation("Building Configuration Loaded: {@BuildingConfig}", buildingConfig);
-                        logger.LogInformation("Elevators Configured: {@Elevators}", appConfig.Elevators);
-
-                        services.AddSingleton(buildingConfig);
-                        services.AddSingleton<IElevatorController, ElevatorController>();
-                        services.AddSingleton<IElevatorFactory, ElevatorFactory>();
-                        services.AddSingleton<IElevatorService, ElevatorService>();
-                        services.AddSingleton<IElevatorValidator, ElevatorValidator>();
-                        services.AddSingleton<IApplicationLogger, ApplicationLogger>();
-                        services.AddSingleton<IElevatorService, ElevatorService>();
-                        services.AddSingleton<IElevatorController, ElevatorController>();
-
-
-                        RegisterElevators(services, buildingConfig.TotalFloors, appConfig.Elevators, logger);
-                    }
-                    else
-                    {
-                        logger.LogWarning($"Configuration file {ConfigFilePath} not found. Loading configuration dynamically.");
-                        appConfig = LoadConfigurationDynamically();
-                        var buildingConfig = appConfig.Building;
-
-                        logger.LogInformation("Building Configuration Loaded Dynamically: {@BuildingConfig}", buildingConfig);
-                        logger.LogInformation("Elevators Configured Dynamically: {@Elevators}", appConfig.Elevators);
-
-                        services.AddSingleton(buildingConfig);
-                        services.AddSingleton<IElevatorController, ElevatorController>();
-                        services.AddSingleton<IElevatorFactory, ElevatorFactory>();
-                        services.AddSingleton<IElevatorService, ElevatorService>();
-
-                        RegisterElevators(services, buildingConfig.TotalFloors, appConfig.Elevators, logger);
-                    }
+                    services.AddSingleton<App>(provider => new App(
+                        provider.GetRequiredService<IElevatorController>(),
+                        provider.GetRequiredService<IApplicationLogger>(),
+                        provider.GetRequiredService<ILogger<App>>(),
+                        appConfig.Building,
+                        ElevatorRequestLock));
                 });
 
-        private static void RegisterElevators(IServiceCollection services, int totalFloors, List<ElevatorConfig> elevators, Microsoft.Extensions.Logging.ILogger logger)
+        private static void RegisterServices(IServiceCollection services)
         {
-            if (elevators != null && elevators.Count > 0)
-            {
-                logger.LogInformation($"Total elevators to register: {elevators.Count}");
-                foreach (var elevatorConfig in elevators)
-                {
-                    try
-                    {
-                        var elevator = new ConcreteElevator(elevatorConfig.Id, elevatorConfig.MaxPassengerCapacity, totalFloors, logger);
-                        services.AddSingleton<IElevator>(provider => (IElevator)elevator);
+            services.AddTransient<IElevatorController, ElevatorController>();
+        }
 
-                        logger.LogInformation($"Elevator with ID {elevatorConfig.Id} and capacity {elevatorConfig.MaxPassengerCapacity} created and registered.");
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, $"Failed to create Elevator with ID {elevatorConfig.Id} and capacity {elevatorConfig.MaxPassengerCapacity}.");
-                    }
-                }
+        private static AppConfig LoadAppConfiguration(IServiceCollection services)
+        {
+            var logger = services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
+
+            if (File.Exists(ConfigFilePath))
+            {
+                logger.LogInformation($"Loading configuration from {ConfigFilePath}");
+                return LoadConfiguration(ConfigFilePath);
             }
-            else
+
+            logger.LogWarning($"Configuration file {ConfigFilePath} not found. Loading configuration dynamically.");
+            return LoadConfigurationDynamically();
+        }
+
+        private static void RegisterElevators(IServiceCollection services, int totalFloors, List<ElevatorConfig> elevators)
+        {
+            var loggerFactory = services.BuildServiceProvider().GetRequiredService<Microsoft.Extensions.Logging.ILoggerFactory>();
+            var logger = services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
+
+            if (elevators == null || elevators.Count == 0)
             {
                 logger.LogWarning("No elevators configured in the loaded configuration.");
+                return;
+            }
+
+            logger.LogInformation($"Registering {elevators.Count} elevators.");
+
+            List<IElevator> elevatorInstances = new List<IElevator>();
+
+            foreach (var elevatorConfig in elevators)
+            {
+                var loggerForElevator = loggerFactory.CreateLogger<ConcreteElevator>();
+                var elevator = new ConcreteElevator(
+                    elevatorConfig.Id,
+                    elevatorConfig.MaxPassengerCapacity,
+                    totalFloors,
+                    loggerForElevator,
+                    elevatorConfig.CurrentFloor,
+                    elevatorConfig.CurrentPassengers
+                );
+
+                elevatorInstances.Add(elevator);
+                logger.LogInformation($"Registered elevator {elevatorConfig.Id} with capacity {elevatorConfig.MaxPassengerCapacity} at floor {elevator.CurrentFloor} with {elevator.CurrentPassengers} passengers.");
+            }
+
+            foreach (var elevator in elevatorInstances)
+            {
+                services.AddSingleton(elevator);
+            }
+
+            int numberOfElevators = InputHelper.GetValidNumber("Enter the number of additional elevators: ");
+            int maxCapacity = InputHelper.GetValidNumber("Enter the maximum passenger capacity for the new elevators: ");
+
+            for (int i = 0; i < numberOfElevators; i++)
+            {
+                var elevatorConfig = new ElevatorConfig { Id = elevatorInstances.Count + i + 1, MaxPassengerCapacity = maxCapacity };
+                elevators.Add(elevatorConfig);
+
+                var loggerForNewElevator = loggerFactory.CreateLogger<ConcreteElevator>();
+
+                int newCurrentFloor = 1;
+                int newCurrentPassengers = 0;
+
+                var newElevator = new ConcreteElevator(
+                    elevatorConfig.Id,
+                    elevatorConfig.MaxPassengerCapacity,
+                    totalFloors,
+                    loggerForNewElevator,
+                    newCurrentFloor,
+                    newCurrentPassengers
+                );
+
+                services.AddSingleton(newElevator);
+                logger.LogInformation($"Added elevator {newElevator.Id} with capacity {maxCapacity}.");
             }
         }
 
@@ -131,23 +141,22 @@ namespace ElevatorChallenge
         {
             var appConfig = new AppConfig
             {
-                Building = new BuildingConfig()
+                Building = new BuildingConfig { TotalFloors = InputHelper.GetValidNumber("Enter total number of floors: ") },
+                Elevators = new List<ElevatorConfig>()
             };
 
-            appConfig.Building.TotalFloors = InputHelper.GetValidNumber("Enter total number of floors: ");
             int numberOfElevators = InputHelper.GetValidNumber("Enter number of elevators: ");
-            appConfig.Elevators = new List<ElevatorConfig>();
 
             for (int i = 0; i < numberOfElevators; i++)
             {
-                int maxPassengerCapacity = InputHelper.GetValidNumber($"Enter max passenger capacity for elevator {i + 1}: ");
-                if (maxPassengerCapacity > 0) // Check for valid capacity
+                int maxCapacity = InputHelper.GetValidNumber($"Enter max passenger capacity for elevator {i + 1}: ");
+                if (maxCapacity > 0)
                 {
-                    appConfig.Elevators.Add(new ElevatorConfig { Id = i + 1, MaxPassengerCapacity = maxPassengerCapacity });
+                    appConfig.Elevators.Add(new ElevatorConfig { Id = i + 1, MaxPassengerCapacity = maxCapacity });
                 }
                 else
                 {
-                    Console.WriteLine($"Invalid capacity entered for elevator {i + 1}. Must be greater than zero.");
+                    Console.WriteLine("Capacity must be greater than zero.");
                 }
             }
 
@@ -156,59 +165,80 @@ namespace ElevatorChallenge
 
         private static AppConfig LoadConfiguration(string path)
         {
-            using (var stream = File.OpenRead(path))
-            {
-                return JsonSerializer.Deserialize<AppConfig>(stream);
-            }
+            using var stream = File.OpenRead(path);
+            return JsonSerializer.Deserialize<AppConfig>(stream);
+        }
+    }
+
+    public class App
+    {
+        private const string ExitCommand = "exit";
+        private readonly IElevatorController _elevatorController;
+        private readonly IApplicationLogger _appLogger;
+        private readonly ILogger<App> _logger;
+        private readonly int _totalFloors;
+        private readonly object _elevatorRequestLock;
+
+        public App(IElevatorController elevatorController, IApplicationLogger appLogger, ILogger<App> logger, BuildingConfig buildingConfig, object elevatorRequestLock)
+        {
+            _elevatorController = elevatorController;
+            _appLogger = appLogger;
+            _logger = logger;
+            _totalFloors = buildingConfig.TotalFloors;
+            _elevatorRequestLock = elevatorRequestLock;
         }
 
-        private static async Task RunElevatorRequestLoopAsync(IApplicationLogger appLogger, IElevatorController elevatorController, int totalFloors, Microsoft.Extensions.Logging.ILogger logger)
+        public async Task RunAsync()
+        {
+            _logger.LogInformation("Welcome to the Elevator Control System!");
+            _elevatorController.ShowElevatorStatus();
+
+            await RunElevatorRequestLoopAsync();
+        }
+
+        private async Task RunElevatorRequestLoopAsync()
         {
             while (true)
             {
-                // Prompt user for elevator request
                 Console.WriteLine("Enter the floor number (or type 'exit' to quit):");
                 var input = Console.ReadLine();
 
                 if (string.Equals(input, ExitCommand, StringComparison.OrdinalIgnoreCase))
                 {
-                    logger.LogInformation("Exiting the Elevator Control System.");
-                    Console.WriteLine("Exiting the Elevator Control System. Goodbye!");
+                    _logger.LogInformation("Exiting the Elevator Control System.");
                     break;
                 }
 
-                if (int.TryParse(input, out int floorNumber) && floorNumber >= 0 && floorNumber < totalFloors)
+                if (int.TryParse(input, out int floorNumber) && floorNumber >= 1 && floorNumber <= _totalFloors)
                 {
                     Console.WriteLine("Enter the number of passengers waiting:");
                     if (int.TryParse(Console.ReadLine(), out int passengers) && passengers > 0)
                     {
-                        // Check if elevators are available before making a request
-                        if (elevatorController.HasAvailableElevators())
+                        lock (_elevatorRequestLock)
                         {
-                            // Request elevator
-                            await elevatorController.RequestElevator(floorNumber, passengers); // Awaiting the elevator request
-                            logger.LogInformation($"Elevator requested to floor {floorNumber} for {passengers} passengers.");
-                        }
-                        else
-                        {
-                            logger.LogWarning("No elevators available to fulfill the request.");
-                            Console.WriteLine("No elevators available to fulfill the request.");
+                            // Check for available elevators for the number of passengers requested
+                            if (_elevatorController.HasAvailableElevators(passengers))
+                            {
+                                // Request an elevator
+                                _elevatorController.RequestElevator(floorNumber, passengers);
+                                _logger.LogInformation($"Elevator requested to floor {floorNumber} for {passengers} passengers.");
+                            }
+                            else
+                            {
+                                _logger.LogWarning("No elevators available for the requested number of passengers.");
+                                Console.WriteLine("No elevators available for the requested number of passengers.");
+                            }
                         }
                     }
                     else
                     {
-                        appLogger.LogError("Invalid number of passengers entered.");
-                        logger.LogWarning("Invalid number of passengers entered.");
+                        _logger.LogWarning("Invalid number of passengers entered.");
                     }
                 }
                 else
                 {
-                    appLogger.LogError("Invalid floor number entered.");
-                    logger.LogWarning("Invalid floor number entered: {Input}", input);
+                    _logger.LogWarning("Invalid floor number entered.");
                 }
-
-                // Display current elevator status
-                elevatorController.ShowElevatorStatus();
             }
         }
     }
