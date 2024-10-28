@@ -1,31 +1,27 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
 using ElevatorChallenge.ElevatorChallenge.src.Models;
-using ElevatorChallenge.ElevatorChallenge.src.Repositories;
 using Microsoft.Extensions.Logging;
 
 namespace ElevatorChallenge.ElevatorChallenge.src.Services
 {
     public class ElevatorControlSystem : IElevatorControlSystem
     {
-        private readonly ElevatorRepository _elevatorRepository; // Use repository
+        private readonly IElevatorRepository _elevatorRepository;
         private readonly ILogger<ElevatorControlSystem> _logger;
         private readonly object _lock = new object();
 
-        // Constructor to accept elevator configurations
-        public ElevatorControlSystem(IElevatorFactory elevatorFactory, ILogger<ElevatorControlSystem> logger, List<ElevatorConfig> elevatorConfigs)
+        public ElevatorControlSystem(IElevatorRepository elevatorRepository, ILogger<ElevatorControlSystem> logger)
         {
-            // Create elevators using the factory and pass to repository
-            var elevators = elevatorFactory.CreateElevators(elevatorConfigs);
-            _elevatorRepository = new ElevatorRepository(elevators); // Initialize repository
-            _logger = logger; // Store the logger for logging operations
+            _elevatorRepository = elevatorRepository ?? throw new ArgumentNullException(nameof(elevatorRepository));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        // Change the signature to async
         public async Task RequestElevatorAsync(int targetFloor, int passengerCount)
         {
-            Elevator selectedElevator = null;
+            IElevator selectedElevator;
 
             lock (_lock)
             {
@@ -37,34 +33,32 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Services
                 else
                 {
                     _logger.LogWarning("No available elevator can accommodate the request.");
-                    return; // Exit early if no elevator is available
+                    return;
                 }
             }
 
-            // Await MoveAsync outside of the lock to prevent blocking other threads
             try
             {
                 await selectedElevator.MoveAsync(targetFloor);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Failed to move Elevator {selectedElevator.Id} to floor {targetFloor}."); // Log the error
+                _logger.LogError(ex, $"Failed to move Elevator {selectedElevator.Id} to floor {targetFloor}.");
             }
         }
 
-        public void InitializeElevators()
+        public void InitializeElevators(IElevatorFactory elevatorFactory, List<ElevatorConfig> elevatorConfigs)
         {
             lock (_lock)
             {
-                // Initialize with various elevator types based on configuration if needed
-                var glassElevator = new GlassElevator(2, 1, 8, (ILogger<GlassElevator>)_logger); // Provide id, currentFloor, maxPassengerCapacity, and logger
-
-                // Use the TryAddElevator method instead of AddElevator
-                _elevatorRepository.TryAddElevator(glassElevator);
-
-                // Uncomment and implement other elevator types as necessary
-                // var standardElevator = new StandardElevator(...); 
-                // _elevatorRepository.TryAddElevator(standardElevator);
+                var elevators = elevatorFactory.CreateElevators(elevatorConfigs);
+                foreach (var elevator in elevators)
+                {
+                    if (!_elevatorRepository.TryAddElevator(elevator))
+                    {
+                        _logger.LogWarning($"Elevator with ID {elevator.Id} could not be added to the repository.");
+                    }
+                }
             }
         }
     }

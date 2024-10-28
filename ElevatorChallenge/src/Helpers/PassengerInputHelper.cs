@@ -14,8 +14,10 @@ namespace ElevatorChallenge.Helpers
                 Console.Write("Enter the number of passengers (1-5): ");
                 string input = Console.ReadLine();
 
+                // Try to parse the input into an integer
                 if (int.TryParse(input, out int passengerCount))
                 {
+                    // Check if the count is within the valid range
                     if (passengerCount < 1 || passengerCount > 5)
                     {
                         logger.LogWarning($"Invalid passenger count: {passengerCount}. Must be between 1 and 5.");
@@ -24,11 +26,12 @@ namespace ElevatorChallenge.Helpers
                     else
                     {
                         logger.LogInformation($"Passenger count set to: {passengerCount}");
-                        return passengerCount;
+                        return passengerCount; // Return valid passenger count
                     }
                 }
                 else
                 {
+                    // Handle non-integer input
                     logger.LogWarning($"Invalid input: {input}. Please enter a valid number.");
                     Console.WriteLine("Invalid input. Please enter a number.");
                 }

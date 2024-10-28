@@ -101,21 +101,6 @@ public abstract class Elevator : IElevator
         }
     }
 
-    //public void AddPassengers(int count)
-    //{
-    //    if (count < 0)
-    //    {
-    //        throw new ArgumentException("Passenger count cannot be negative.", nameof(count));
-    //    }
-
-    //    if (CurrentPassengers + count > Capacity)
-    //    {
-    //        throw new InvalidOperationException("Not enough capacity to add passengers.");
-    //    }
-
-    //    CurrentPassengers += count; // Update current passenger count
-    //}
-
     public async Task AddPassengersAsync(int count, Elevator[] elevators)
     {
         if (count < 0)
