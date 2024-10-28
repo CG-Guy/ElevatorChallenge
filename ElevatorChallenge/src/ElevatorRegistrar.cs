@@ -1,4 +1,5 @@
-﻿using global::ElevatorChallenge.ElevatorChallenge.src.Models;
+﻿using ElevatorChallenge.ElevatorChallenge.src.Models;
+using global::ElevatorChallenge.ElevatorChallenge.src.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;

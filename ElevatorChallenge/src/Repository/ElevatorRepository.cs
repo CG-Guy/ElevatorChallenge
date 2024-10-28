@@ -110,5 +110,6 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Repositories
             _logger.LogInformation($"Best elevator selected: ID {bestElevator?.Id} for target floor {targetFloor}");
             return bestElevator;
         }
+
     }
 }
