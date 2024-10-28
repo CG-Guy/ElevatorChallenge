@@ -4,42 +4,51 @@ using System.Collections.Generic;
 using System.Linq;
 using ElevatorChallenge.ElevatorChallenge.src.Interfaces;
 using ElevatorChallenge.ElevatorChallenge.src.Models;
+using Microsoft.Extensions.Logging;
 
 namespace ElevatorChallenge.ElevatorChallenge.src.Repositories
 {
     public class ElevatorRepository : IElevatorRepository // Implementing the repository interface
     {
-        private readonly ConcurrentBag<Elevator> _elevators; // Thread-safe in-memory storage
+        private readonly ConcurrentDictionary<int, Elevator> _elevators; // Thread-safe in-memory storage with dictionary for quicker lookup
+        private readonly ILogger<ElevatorRepository> _logger;
+        private readonly ElevatorSelector _elevatorSelector;
+        private List<Elevator> elevators;
 
-        public ElevatorRepository(IEnumerable<Elevator> elevators) // Accept IEnumerable for flexibility
+        public ElevatorRepository(IEnumerable<Elevator> elevators, ILogger<ElevatorRepository> logger) // Accept IEnumerable for flexibility
         {
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger), "Logger cannot be null.");
+            _elevatorSelector = new ElevatorSelector((ILogger<ElevatorSelector>)logger);
+
             if (elevators == null)
             {
                 throw new ArgumentNullException(nameof(elevators), "Elevators collection cannot be null.");
             }
 
-            _elevators = new ConcurrentBag<Elevator>(elevators); // Initialize thread-safe collection
+            _elevators = new ConcurrentDictionary<int, Elevator>(elevators.ToDictionary(e => e.Id));
         }
 
-        public Elevator FindBestElevator(int targetFloor, int passengerCount)
+        public ElevatorRepository(List<Elevator> elevators)
+        {
+            this.elevators = elevators;
+        }
+
+        public IElevator FindBestElevator(int targetFloor, int passengerCount)
         {
             ValidateInput(targetFloor, passengerCount);
 
-            // Use LINQ to find available elevators
-            var availableElevators = _elevators
+            var availableElevators = _elevators.Values
                 .Where(e => e.PassengerCount + passengerCount <= e.MaxPassengerCapacity && !e.IsMoving)
+                .Cast<IElevator>() // Ensure we are returning IElevator
                 .ToList();
 
             if (!availableElevators.Any())
             {
-                LogWarning("No available elevators found.");
+                _logger.LogWarning("No available elevators found.");
                 return null;
             }
 
-            // Select the nearest elevator to the target floor
-            return availableElevators
-                .OrderBy(e => Math.Abs(e.CurrentFloor - targetFloor))
-                .FirstOrDefault();
+            return _elevatorSelector.SelectBestElevator(availableElevators, targetFloor);
         }
 
         public bool TryAddElevator(Elevator elevator)
@@ -49,23 +58,25 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Repositories
                 throw new ArgumentNullException(nameof(elevator), "Elevator cannot be null.");
             }
 
-            if (_elevators.Any(e => e.Id == elevator.Id))
+            // Thread-safe addition of elevator
+            if (!_elevators.TryAdd(elevator.Id, elevator))
             {
-                throw new InvalidOperationException($"Elevator with ID {elevator.Id} already exists.");
+                _logger.LogError($"Elevator with ID {elevator.Id} already exists.");
+                return false;
             }
 
-            _elevators.Add(elevator);
             return true;
         }
 
         public IReadOnlyList<Elevator> GetAllElevators()
         {
-            return _elevators.ToList().AsReadOnly();
+            return _elevators.Values.ToList().AsReadOnly();
         }
 
         public Elevator GetElevatorById(int id)
         {
-            return _elevators.FirstOrDefault(e => e.Id == id);
+            _elevators.TryGetValue(id, out Elevator elevator);
+            return elevator;
         }
 
         private void ValidateInput(int targetFloor, int passengerCount)
@@ -79,10 +90,25 @@ namespace ElevatorChallenge.ElevatorChallenge.src.Repositories
                 throw new ArgumentOutOfRangeException(nameof(passengerCount), "Passenger count cannot be negative.");
             }
         }
+    }
 
-        private void LogWarning(string message)
+    public class ElevatorSelector // Separating the selection logic into its own class for SRP
+    {
+        private readonly ILogger<ElevatorSelector> _logger;
+
+        public ElevatorSelector(ILogger<ElevatorSelector> logger)
         {
-            Console.WriteLine($"WARNING: {message}");
+            _logger = logger;
+        }
+
+        public IElevator SelectBestElevator(IEnumerable<IElevator> availableElevators, int targetFloor)
+        {
+            var bestElevator = availableElevators
+                .OrderBy(e => Math.Abs(e.CurrentFloor - targetFloor))
+                .FirstOrDefault();
+
+            _logger.LogInformation($"Best elevator selected: ID {bestElevator?.Id} for target floor {targetFloor}");
+            return bestElevator;
         }
     }
 }

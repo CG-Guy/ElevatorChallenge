@@ -1,5 +1,4 @@
-﻿// Program.cs
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -12,18 +11,19 @@ using ElevatorChallenge.ElevatorChallenge.src.Logic;
 using ElevatorChallenge.Services;
 using ElevatorChallenge.ElevatorChallenge.src.Helpers;
 using ElevatorChallenge.ElevatorChallenge.src;
+using ElevatorChallenge.Helpers;
 
 namespace ElevatorChallenge
 {
     class Program
     {
         private const string ConfigFilePath = "elevatorConfig.json";
-        private static readonly object ElevatorRequestLock = new object();
+        private static readonly SemaphoreSlim ElevatorRequestSemaphore = new SemaphoreSlim(1, 1); // For thread safety
 
         static async Task Main(string[] args)
         {
             using var host = CreateHostBuilder(args).Build();
-            await host.Services.GetRequiredService<App>().RunAsync();
+            await host.Services.GetRequiredService<App>().RunAsync(CancellationToken.None); // Passed CancellationToken
         }
 
         private static IHostBuilder CreateHostBuilder(string[] args) =>
@@ -44,13 +44,15 @@ namespace ElevatorChallenge
                      services.AddSingleton(appConfig.Building);
                      RegisterElevators(services, appConfig.Building.TotalFloors, appConfig.Elevators);
 
-                     // Registering the App class
+                     // Registering the App class with SemaphoreSlim
                      services.AddSingleton<App>(provider => new App(
-                         provider.GetRequiredService<IElevatorController>(),
-                         provider.GetRequiredService<IApplicationLogger>(),
-                         provider.GetRequiredService<ILogger<App>>(),
-                         appConfig.Building,
-                         ElevatorRequestLock));
+                          provider.GetRequiredService<IElevatorController>(),
+                          provider.GetRequiredService<IApplicationLogger>(),
+                          provider.GetRequiredService<ILogger<App>>(),
+                          appConfig.Building,
+                          ElevatorRequestSemaphore
+                      ));
+
                  });
 
         private static AppConfig LoadAppConfiguration(IServiceCollection services)
@@ -80,8 +82,6 @@ namespace ElevatorChallenge
 
             logger.LogInformation($"Registering {elevators.Count} elevators.");
 
-            var elevatorInstances = new List<IElevator>();
-
             foreach (var elevatorConfig in elevators)
             {
                 var loggerForElevator = loggerFactory.CreateLogger<ConcreteElevator>();
@@ -94,36 +94,8 @@ namespace ElevatorChallenge
                     elevatorConfig.CurrentPassengers
                 );
 
-                elevatorInstances.Add(elevator);
-                logger.LogInformation($"Registered elevator {elevatorConfig.Id} with capacity {elevatorConfig.MaxPassengerCapacity} at floor {elevator.CurrentFloor} with {elevator.CurrentPassengers} passengers.");
-            }
-
-            foreach (var elevator in elevatorInstances)
-            {
-                services.AddSingleton(elevator);
-            }
-
-            int numberOfElevators = InputHelper.GetValidNumber("Enter the number of additional elevators: ");
-            int maxCapacity = InputHelper.GetValidNumber("Enter the maximum passenger capacity for the new elevators: ");
-
-            for (int i = 0; i < numberOfElevators; i++)
-            {
-                var elevatorConfig = new ElevatorConfig { Id = elevatorInstances.Count + i + 1, MaxPassengerCapacity = maxCapacity };
-                elevators.Add(elevatorConfig);
-
-                var loggerForNewElevator = loggerFactory.CreateLogger<ConcreteElevator>();
-
-                var newElevator = new ConcreteElevator(
-                    elevatorConfig.Id,
-                    elevatorConfig.MaxPassengerCapacity,
-                    totalFloors,
-                    loggerForNewElevator,
-                    1, // Default floor
-                    0  // Default passengers
-                );
-
-                services.AddSingleton(newElevator);
-                logger.LogInformation($"Added elevator {newElevator.Id} with capacity {maxCapacity}.");
+                services.AddSingleton<IElevator>(elevator);
+                logger.LogInformation($"Registered elevator {elevatorConfig.Id}.");
             }
         }
 
@@ -136,18 +108,10 @@ namespace ElevatorChallenge
             };
 
             int numberOfElevators = InputHelper.GetValidNumber("Enter number of elevators: ");
-
             for (int i = 0; i < numberOfElevators; i++)
             {
                 int maxCapacity = InputHelper.GetValidNumber($"Enter max passenger capacity for elevator {i + 1}: ");
-                if (maxCapacity > 0)
-                {
-                    appConfig.Elevators.Add(new ElevatorConfig { Id = i + 1, MaxPassengerCapacity = maxCapacity });
-                }
-                else
-                {
-                    Console.WriteLine("Capacity must be greater than zero.");
-                }
+                appConfig.Elevators.Add(new ElevatorConfig { Id = i + 1, MaxPassengerCapacity = maxCapacity });
             }
 
             return appConfig;
