@@ -6,13 +6,14 @@ namespace ElevatorChallenge.src.Models
 {
     public class ConcreteElevator : Elevator, IElevator
     {
-        private readonly ILogger<Elevator> _logger; // Use a private field for the logger
+        private readonly ILogger<ConcreteElevator> _logger; // Use a private field for the logger
 
         // Constructor
-        public ConcreteElevator(int id, int maxFloor, int maxPassengerCapacity, ILogger<Elevator> logger)
+        public ConcreteElevator(int id, int maxFloor, int maxPassengerCapacity, ILogger<ConcreteElevator> logger)
             : base(id, maxFloor, maxPassengerCapacity, logger)
         {
             _logger = logger; // Initialize the private field
+            CurrentFloor = 1; // Default to the first floor
         }
 
         public int Capacity => MaxPassengerCapacity; // Implementing IElevator property
@@ -22,7 +23,8 @@ namespace ElevatorChallenge.src.Models
             if (CurrentPassengers + numberOfPassengers <= MaxPassengerCapacity)
             {
                 CurrentPassengers += numberOfPassengers;
-                await Task.Delay(1000); // Simulate the time taken to move to the requested floor
+                await Task.Delay(1000); // Simulate the time taken to add passengers
+                _logger.LogInformation($"{numberOfPassengers} passengers added to Elevator {Id}. Current count: {CurrentPassengers}.");
             }
             else
             {
@@ -43,9 +45,9 @@ namespace ElevatorChallenge.src.Models
                 return;
             }
 
-            if (PassengerCount > MaxPassengerCapacity)
+            if (CurrentPassengers > MaxPassengerCapacity)
             {
-                _logger.LogWarning($"Elevator {Id} is over capacity with {PassengerCount} passengers.");
+                _logger.LogWarning($"Elevator {Id} is over capacity with {CurrentPassengers} passengers.");
                 return;
             }
 
@@ -66,26 +68,26 @@ namespace ElevatorChallenge.src.Models
                 throw new ArgumentException("Passenger count cannot be negative.", nameof(count));
             }
 
-            int newTotalPassengerCount = PassengerCount + count;
+            int newTotalPassengerCount = CurrentPassengers + count;
 
             if (newTotalPassengerCount <= MaxPassengerCapacity)
             {
-                PassengerCount = newTotalPassengerCount;
-                _logger.LogInformation($"{count} passengers added to Elevator {Id}. Current count: {PassengerCount}.");
+                CurrentPassengers = newTotalPassengerCount;
+                _logger.LogInformation($"{count} passengers added to Elevator {Id}. Current count: {CurrentPassengers}.");
             }
             else
             {
                 _logger.LogWarning($"Cannot add {count} passengers. Capacity exceeded for Elevator {Id}.");
                 throw new InvalidOperationException(
-                    $"Cannot add {count} passengers to Elevator {Id}. Capacity exceeded. Current count: {PassengerCount}, Attempted to add: {count}, Max capacity: {MaxPassengerCapacity}."
+                    $"Cannot add {count} passengers to Elevator {Id}. Capacity exceeded. Current count: {CurrentPassengers}, Attempted to add: {count}, Max capacity: {MaxPassengerCapacity}."
                 );
             }
         }
 
         public void GetStatus()
         {
-            _logger.LogInformation($"Elevator {Id} Status - Current floor: {CurrentFloor}, Passengers on board: {PassengerCount}");
-            Console.WriteLine($"Elevator {Id} Status - Current floor: {CurrentFloor}, Passengers on board: {PassengerCount}");
+            _logger.LogInformation($"Elevator {Id} Status - Current floor: {CurrentFloor}, Passengers on board: {CurrentPassengers}");
+            Console.WriteLine($"Elevator {Id} Status - Current floor: {CurrentFloor}, Passengers on board: {CurrentPassengers}");
         }
 
         public void GoToFloor(int floor)

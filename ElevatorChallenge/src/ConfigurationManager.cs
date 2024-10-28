@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ElevatorChallenge.ElevatorChallenge.src.Helpers;
 using ElevatorChallenge.ElevatorChallenge.src.Models;
+using ElevatorChallenge.src.Models;
 
 namespace ElevatorChallenge.ElevatorChallenge.src
 {

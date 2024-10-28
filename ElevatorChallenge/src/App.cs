@@ -65,7 +65,6 @@ namespace ElevatorChallenge.ElevatorChallenge.src
 
         private async Task RequestElevatorAsync(int floor)
         {
-            // Directly use the static method
             int passengers = PassengerInputHelper.ReadPassengerCount(_logger);
 
             await _elevatorRequestSemaphore.WaitAsync();

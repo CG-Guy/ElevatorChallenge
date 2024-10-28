@@ -12,6 +12,7 @@ using ElevatorChallenge.Services;
 using ElevatorChallenge.ElevatorChallenge.src.Helpers;
 using ElevatorChallenge.ElevatorChallenge.src;
 using ElevatorChallenge.Helpers;
+using ElevatorChallenge.src.Models;
 
 namespace ElevatorChallenge
 {
